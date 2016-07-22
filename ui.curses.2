@@ -1,0 +1,132 @@
+#!/usr/bin/env ruby
+$LOAD_PATH << "#{File.dirname __FILE__}/lib/"
+
+require 'rubygems'
+require 'curses'
+#require 'sdl2'
+include Curses
+require "dbmanager.rb"
+
+CONF = { 	:FONT_SIZE => 40,
+				 		:PADDING => 1 }
+UILOG = Logger.new("ui.log")
+COLORS = { 	:background =>  [ 100, 100, 100 ],
+						:item => 				[ 700, 700, 300 ],
+						:executable => 	[ 700, 300, 300 ],
+						:tag => 				[ 300, 700, 300 ],
+						:chardevice => 	[ 300, 700, 700 ],
+						:blockdevice =>	[ 700, 300, 700 ],
+						:directory => 	[ 300, 300, 700 ] }
+
+module Visual
+	attr_accessor :x, :y, :color
+	def draw x,y,win
+		#UILOG.debug self.class.to_s
+		color = self.class.to_s.downcase.to_sym
+		to_s.draw x,y,color,win
+	end	
+end	
+
+class Tag;	include Visual
+	def to_s;		name;									end
+end
+class Item;	include Visual
+	def to_s;		path.split("/")[-1];	end	
+end
+
+class String
+	def draw x, y, color, win
+		win.setpos y ,x
+		win.attron( color_pair(COLORS.keys.index(color)) )
+		#win.color_set COLORS.keys.index(color)
+		win.addstr self
+	end
+end
+
+class List < Window #Pad
+	#include Enumerable
+	attr_accessor :x, :y, :width, :height, :entries
+	def initialize a=[], x=CONF[:PADDING],y=CONF[:PADDING]
+		super 10,10,x,y 
+		keypad = true
+		#@x, @y = x, y
+		@entries = a
+		#for entry in @entries
+			#self << entry.to_s + "\n"
+		#end
+		box '|', '-'
+		#refresh
+		#@height =  length * CONF[:FONT_SIZE]
+		#@width = max{ |a,b| a.to_s.length <=> b.to_s.length }.to_s.length
+#			c=getch
+	end	
+	def draw
+		@entries.each_with_index do |entry, i|
+			entry.draw 0, i, self
+			#UILOG.debug "x: %s y: %s" % [curx, cury]
+			#entry.draw @x, @y + i * CONF[:FONT_SIZE]
+		end
+   	#UILOG.debug getch #Event.poll 
+		refresh
+	end
+		
+end
+		
+MENU = List.new ([ Item[:path=>"/home/key/fun"],
+										Tag[:name=>"scan"] ])
+SESSION = [ MENU ]
+
+#WIDTH, HEIGHT = 600, 600
+
+class SIA # < Window
+  
+  def initialize colortest = false
+    #self.caption = "SIA UI"
+		init_screen
+		start_color
+		COLORS.each_with_index do |color,i|
+			UILOG.debug "col=  %s i= %s" % [color, i]
+			init_color i, *color[1]
+			init_pair i, i, COLOR_BLACK
+			"#{color[0]} - #{color_content i}".to_s.draw 0,i,color[0],Curses if colortest
+		end	
+		crmode
+		noecho
+  	curs_set 0
+  	mousemask(ALL_MOUSE_EVENTS)
+		stdscr.keypad(true)
+  	#mousemask(BUTTON1_CLICKED|BUTTON2_CLICKED|BUTTON3_CLICKED|BUTTON4_CLICKED)
+ end
+	  
+  def draw
+		#"test".draw 5,10,:executable,Curses
+		#clear
+		refresh
+		SESSION.each( &:draw )
+		#refresh
+  end
+	
+	def run
+		loop do
+			draw
+    	input = getch #Event.poll 
+			#refresh  
+			#UILOG.debug "input: %s" % [input.inspect]
+
+    	case input
+    		when KEY_MOUSE
+    			mouse = getmouse
+					UILOG.debug "x: %s y: %s" % [mouse.x, mouse.y]
+				#when 27 
+				when KEY_EXIT
+        	exit
+    	end
+    end
+  end
+
+begin
+		SIA.new.run if __FILE__ == $0
+	end
+ensure
+  close_screen
+end
