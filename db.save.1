@@ -1,9 +1,0 @@
-#!/usr/bin/ruby
-
-load './lib/dbmanager.rb'
-
-#puts eval("%s '%s'" % ARGV) if !ARGV.empty?
-#p $0
-eval "DBManager.new.%s '%s'" %  [ $*[0], $*[1..-1].join(" 
-") ] #if $0 == "unite"#unless $*.empty?
-#eval "%s '%s'" % ARGV rescue help if ARGV
