@@ -3,42 +3,58 @@ $LOAD_PATH << "#{File.dirname __FILE__}/lib/"
 
 require 'rubygems'
 require 'curses'
-require "dbmanager.rb"
+#require "dbmanager.rb"
 require "manparser.rb"
 include Curses
+
 
 module Visual
 	attr_accessor :x, :y
 	def draw x,y,win
 		to_s.draw x,y,color,win
-		#UILOG.debug color.to_s
 	end	
-	def show klass
- 		LAYOUT[:main] = klass.new( self )
-	end
+	def color; self.class.to_s.downcase.to_sym; end
 end	
-
-class Type;	include Visual
-	def to_s;	name;	end
-	def color; :type; end
-	def click; show FileBrowser; end		
-	def children; []; end
-end
 class Item;	include Visual
-	def to_s;	path.split("/")[-1]; end	
-	def color; COLORS.keys.grep( type.name.to_sym ).first || :item; end
+	def click
+		LAYOUT[:main] = FileBrowser.new( self ); end; end
+class Executable;	include Visual
+	def click; 
+		LAYOUT[:main] =  CMDBuilder.new( self ); end; end
+
+class Directory; include Visual
+	def initialize path
+		@path = path
+		@entries = `file #{path}/*`.map do |entry|
+			types = entry[/:(.*);/][2..-2].split "/"
+      match = ( (%w{ directory } & types) + ["item"] ).first
+			if match != "directory" && FileTest.executable? path
+  			match = "executable" 
+      path = entry[/^.*:/][0..-2]
+      #unless match.empty?
+      eval "%s.new '%s'" [match.capitalize, path]
+      #end
+    end
+	end
+			
+	end
+	#def to_s;	path.split("/")[-1]; end	
+	def color
+	  #UILOG.debug type.name
+		return :directory	if type.name == "directory" 
+		return :executable	if executable 
+		COLORS.keys.grep( type.name.to_sym ).first || super; end
 	def click
 		case type.name
 		when "directory"
 			show FileBrowser 
 		else
 			if executable
-				show CMDBuilder
+				show CMDBuilder 
 			end
 		end
 	end
 end
-
 class String
 	def draw x, y, color, win
 		win.setpos y ,x
@@ -47,31 +63,17 @@ class String
 		win.addstr self
 	end
 end
-class Window
-#	def child
-#		SESSION[SESSION.index(self) + 1]
-#	end
-#	def prune
-#		close
-#		child.prune if child
-#		SESSION.delete self
-#	end
-	def click#draw
-		refresh
-	end
-end
 class CMDBuilder < Window
-	def initialize cmd
-		@page = ManPage.new cmd
+	def initialize item
+		@page = ManPage.new( item.to_s)
 		m = CONF[:margin]
-		menu = LAYOUT[:menu].width
+		menu = LAYOUT[:menu].maxx
 		super lines - 2*m, cols - 2*m, m, menu + m 
 	end
 	def draw
 		@page.options.keys.each_with_index do |option, i|
 			option.draw 0, i, COLOR[:default], self
 		end
-		super
 	end
 end
 class FileBrowser #< Window
@@ -92,7 +94,7 @@ class FileBrowser #< Window
 		@results.draw
 	end
 	def update 
-		UILOG.debug "filter: %s" % @filter.entries.join("/")
+#		UILOG.debug "filter: %s" % @filter.entries.join("/")
 		@choices.entries = @filter[-1].directories
 		@results.entries = @filter[-1].files
 		@filter.update
@@ -103,18 +105,21 @@ class FileBrowser #< Window
 		@choices.update
 		@choices.refresh
 #		UILOG.debug "x: %s y: %s" % [@choices.maxx,@choices.maxy]
-		UILOG.debug "x: %s y: %s" % [@filter.maxx,@filter.maxy]
+#		UILOG.debug "x: %s y: %s" % [@filter.maxx,@filter.maxy]
 		
 	end
 	def click x, y
 		s = CONF[:spacing]
 		m = CONF[:margin]
 		if x > @results.begx
+			# results
 			@results[ (y - m) / s ].click
 		else
-			if y > @choices.begy
+			if y >= @choices.begy 
+				# choices
 				@filter << @choices[ (y - @filter.maxy - m) / s ]
-			else
+			else 
+				# filter
 				@filter.entries = @filter[0..(( y - m ) / s)]
 			end
 				update
@@ -190,8 +195,11 @@ COLORS = { 	:default =>  [ 100, 100, 100 ],
 						:blockdevice =>	[ 700, 300, 700 ],
 						#:special 		=>	[ 700, 300, 700 ],
 						:directory => 	[ 300, 300, 700 ] }
-MENU = List.new ([ Item[:path=>"/home/key/fun"],
-										Type[:name=>"plain"] ] )
+MENU = List.new ([ Directory.new "/", "root",
+									 Directory.new ENV["PATH"], "home",
+									 Directory.new ENV["PWD"], "work" )
+									
+
 HELP = TextWindow.new " Welcome, left is the menu ", :center
 LAYOUT = { :menu => MENU,
 					 :main => HELP }
@@ -219,6 +227,8 @@ class SIA # < Window
 		loop do
 			clear
 			refresh
+#			UILOG.debug "-- %s" % instance_variables.inspect
+			#UILOG.debug "-- %s" % MENU.inspect
 			
 			LAYOUT.values.each( &:draw )
     	input = getch #Event.poll 
