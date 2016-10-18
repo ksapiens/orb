@@ -1,19 +1,145 @@
-list width limits
+history
+persistence
+scrolling
 keyboard support
+command builder
+coloring - Color.shade [-10..10]
 recursion
 	find
 	**/**
 mime types
+aliases
+
+
+video background
 opengl interface
 	jpeg generation, cairo?
-	 
 
-menu:
-root <- all files 
-home <- home directory 
-cdir <- current directory
-recent
-frequent
-internet
-devices
+#TODO
+
+name unix X
+	Z
+	uni 
+	earth
+	orb	open objective 
+	crown
+
+globals:
+
+coloring 
+	extension
+	type
+	generic
+		a-z
+		int
+		brackets
+
+persistent undo history, root only
+	text 
+	files
+	modules
+	processes
+	layout
+
+default order
+	.6 recent	timestamp ondemand scan
+	.4 frequent .bash/zsh_history
+
+superlist or director?
+
+item create list down and right
+list collapse toggle onclick 
+stage? 
+
+tag mixing in list
+	sources:
+		for hosts ( localhost or other )
+			url ( 
+			ip, dns, http meta info
+			pathna mes ( file system or ftp/smb/nfs/http
+			mime types
+			tags
+			services
+
+menu: 
+	pinned left for split screen
+	every stage uses full page
+	default order: default+recent+frequent / char
+
+
+	*executable <-  live process signaling
+									modules <- switch loaded kernel modules
+									command builder
+										man browser
+										option parser
+										
+types <- all mime types	
+	binary utf-8, hex browser
+	text <- text browser / editor 
+	devices <- block / character / input
+	image
+	audio
+	video
+	
+						
+tree
+	root <- all files 
+	home <- home directory 
+	wdir <- working directory
+	
+config <- 
+	/etc / 
+	.files )
+	/sys <- system setting 
+
+memory <- 
+alias <- .bash/zsh_history parse
+history <- recent / frequent 
+
+network <- port scan - run default app
+
+							http 
+								url
+								text
+								image
+								video
+								code
+							ftp path
+								type 
+									text
+										language
+										config
+										html
+									image												
+									video
+									exe
+							
+										
+									 
+								
+							ssh <- run baum 
+							socks <- connect
+							name - register
+							time - sync
+							file
+								smb
+								nfs
+								gem
+								git
+								deb
+								rpm
+							db
+								sql
+
+
+
+(rainbow)
+red
+orange
+yellow
+brown
+green
+blue
+violet
+
 

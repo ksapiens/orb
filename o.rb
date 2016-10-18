@@ -1,28 +1,21 @@
-# ORB 
-VERSION = "0.2b"
+#!/usr/bin/env ruby
 
-require 'curses'
+
+# ORB - Omnipercipient Resource Browser
+# 
+# 
+#
+# copyright 2016 kilian reitmayr
+
+$LOAD_PATH << "#{File.dirname __FILE__}/."
+require './view/terminal'
 require 'logger'
 #require "dbmanager.rb"
-require "manparser.rb"
-include Curses
+require "./data/manparser.rb"
 
 UILOG = Logger.new("ui.log")
 
 # Helpers
-class String
-	def draw color = :default, brightness=0, x, y, win
-		
-		win.setpos y ,x
-#		win.attron( color_pair(COLORS.keys.index(color))|A_BOLD )
-		id = COLORS.keys.index(color)
-		UILOG.debug " %s,%s,%s " % COLORS[color]
-		COLORS[color].map!{ |value| value+=brightness } if brightness>0
-
-		UILOG.debug " %s,%s,%s " % COLORS[color]
-		win.attron( color_pair(id)  )
-		win.addstr self; end; end
-	
 class Fixnum
 #	def limit min, max
 #		return min if self < min
@@ -40,13 +33,8 @@ class Hash
 		self[args.first.to_sym] || super
 	end
 end
-class Window
-	def left; begx; end
-	def right; maxx; end
-	def top; begy; end
-	def bottom; maxy; end
-end
-# MODEL / INPUT / DATA
+
+# Options
 class Item
 	attr_reader :path, :name, :focus#, :x, :y
 	def to_s; name; end
@@ -109,7 +97,7 @@ class HostList < Directory
 end
 
 # List: manages + renders items
-class List < Window #Pad
+class List < Area 
 	attr_accessor :entries, :selected, :limit, :range
 	def initialize vars #e=[], x=CONF[:margin],y=CONF[:margin]
 		vars.each { |k,v| instance_variable_set "@"+k.to_s, v }
@@ -236,4 +224,110 @@ class HostBrowser < Window
 		#text.draw 0, 0, :default, self
 		refresh
 	end
+end
+
+# Globals
+CONF = { 	spacing: 1,
+					margin: 1,
+				 	top:  1,
+				 	left: 1,
+				 	bottom: 1,
+				 	limit: 6,				 	
+					colors: {	#			R			G			B
+						default:  	[ 100, 100, 100 ],						
+						type: 			[ 700, 700, 300 ],
+						executable: [ 700, 300, 300 ],
+						item: 			[ 300, 700, 300 ],
+						chardevice: [ 300, 700, 700 ],
+						blockdevice:[ 700, 300, 700 ],
+						special: 		[ 700, 300, 700 ],
+						directory: 	[ 300, 300, 700 ],
+						host: 			[ 100, 300, 700 ],
+						highlight: 	[ 200, 200, 200 ] } }
+CONF.each{ |k,v| eval "%s=%s" % [k.upcase, v] }#.to_s +"="+ v.to_s }
+MENU = List.new ({ entries: [Directory.new( "/", "root" ),
+									 	Directory.new( ENV["HOME"], "home" ),
+									  Directory.new( ENV["PWD"], "work"),
+									  #Type.new( "text", "/" ),
+									  #Type.new( "image", "/" ),
+									  #Type.new( "video", "/" ),
+									  Recent.new,
+									  Frequent.new( "frequent"),
+									  HostList.new( ENV["HOME"]+"/.hostlist/","web"),
+									  Executable.new("/usr/bin/file") ],
+										x: LEFT, y: TOP, limit:LIMIT  })
+
+ #<= devices, 
+ #<= configuration, 
+ #<= processes, parameters 
+#<= hotplugged devices 
+
+HELP = TextWindow.new <<H
+ <= all items 
+ <= user directory
+ <= current working directory
+ <= history of items
+ <= most used items
+ <= host browser
+    
+    Orb - Open Resource Browser
+    
+    a) type in the option, when highlighted, press TAB to select.
+    b) move your pointer over the option and click left for default action and right for action list
+    c) tap for default, twofinger tap for actions
+H
+
+CONF[:main_x] = LEFT + MENU.maxx + 1
+LAYOUT = { menu: MENU,
+					 main: HELP }
+	 				 #main: CMDBuilder.new("file")  }
+
+# main class
+class ORB # < Window
+	def initialize
+		@cmd = ""
+		init
+	end
+	  
+  def colortest
+		clear
+		COLORS.each_with_index do |color,i|
+			"#{color[0]} - #{color_content i}".draw color[0],-20,5,i,Curses
+			#refresh; 
+			end; end
+		
+	def run
+		loop do
+			clear
+			refresh
+			#colortest
+			LAYOUT.values.each( &:draw )
+    	input = getch #Event.poll 
+			refresh  
+    	case input
+    		when KEY_MOUSE
+    			mouse = getmouse
+					#UILOG.debug "x: %s y: %s SESSION: %s" % [mouse.x, mouse.y, SESSION.length]
+					if mouse.x <= LAYOUT[:menu].maxx + CONF[:margin]
+						 LAYOUT[:menu].click mouse.x, mouse.y
+					else
+						 LAYOUT[:main].click mouse.x, mouse.y
+					end	
+				when KEY_EXIT
+        	exit
+				when KEY_F12
+					colortest
+        else
+        	@cmd += input
+        	UILOG.debug @cmd
+    	end
+    end
+  end
+
+begin
+		ORB.new.run if __FILE__ == $0
+end
+ensure
+	use_default_colors()
+  close_screen
 end
