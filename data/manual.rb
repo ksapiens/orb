@@ -1,21 +1,24 @@
-
-#require 'prettyprint'
-require 'pp'
-#require 'dbmanager.rb'
+# ORB - Omnipercipient Resource Browser
+# 
+# 	Manual Page Backend
+#
+# copyright 2016 kilian reitmayr
 
 class ManPage
-	attr_accessor :options, :page
+	attr_reader :options, :page
 	def initialize cmd
 		#ENV["COLUMNS"] = 2
 	  txt = `man #{cmd}`.gsub /\n.*\n.*\z/, ""
-		@options = Hash[*txt.split( /^\W*(-.*)/ )[1..-1]]
+		@options = Hash[*txt.split( /^[[:blank:]]+(-.+)$/ )[1..-1]]
 		@page = Hash[*txt.split( /(^[[:upper:]].*)/ )[3..-1]]
 		#[options, page]
 	end
-	def dump keys=false
-		#pp @options
-		pp @page.keys
+	def dump what=:sections
+		puts @options.keys if what.to_sym == :options
+		puts @page.keys if what.to_sym == :sections
 	end
-	def options
+	def section title="NAME"
+		puts @page[title.upcase]
 	end
+	
 end

@@ -1,21 +1,21 @@
 #!/usr/bin/env ruby
 
-
 # ORB - Omnipercipient Resource Browser
 # 
-# 
+# 	Launcher
 #
 # copyright 2016 kilian reitmayr
 
-$LOAD_PATH << "#{File.dirname __FILE__}/."
+#$LOAD_PATH << "#{File.dirname __FILE__}/."
 require './view/terminal'
 require 'logger'
 #require "dbmanager.rb"
-require "./data/manparser.rb"
+require "./data/manual.rb"
 
 UILOG = Logger.new("ui.log")
 
 # Helpers
+
 class Fixnum
 #	def limit min, max
 #		return min if self < min
@@ -45,7 +45,7 @@ class Item
 	def initialize path, name=path.split("/")[-1]
 		@name, @path = name, path;	end
 	def click
-		system "urxvt -e xdg-open %s" % @path; end
+		system TERM + " xdg-open %s" % @path; end
 end
 
 class Special < Item
@@ -123,7 +123,7 @@ class List < Area
 		clear
 		box '|', '-' if $DEBUG
 		@entries[@range].each_with_index do |entry, i|
-			entry.name.draw entry.color,i%2*10,0,i*SPACING,self		
+			entry.to_s.draw entry.color,i%2*10,0,i*SPACING,self		
 		#def draw x,y,win
 		#entry.draw 0, i * SPACING, self # todo: bg
 		end
@@ -143,13 +143,12 @@ class CMDBuilder #< Window
 		#@options = List.new @page.options.keys, x+m 
 		@sections = List.new ({ entries: @man.page.keys, \
 			selected: @man.page.keys.index( "OPTIONS" )})
-		
 		text_x = CONF[:main_x] + @sections.maxx + 1 
 		@title = @man.page["NAME"]
 		#UILOG.debug "content: %s, %s" % [@man.page.keys, text_x]
-		@content = List.new( {entries: @man.page["OPTIONS"], x: text_x })
+		#@options = @man.page["OPTIONS"].split(/(^\W+-.+$)/
+		@content = List.new( {entries: @man.options, x: text_x })
 		#@content = TextWindow.new @man.page["OPTIONS"], text_x 
-		#draw
 	end
 	def draw
 		[ @sections, @content ].each( &:draw )
@@ -195,7 +194,7 @@ class FileBrowser #< Window
 		end
 	end		
 end
-class TextWindow < Window
+class Text < Area
 	attr_reader :text
 	def initialize text, x=MENU.maxx+1, y=TOP #CONF[:top]
 		super 0, 0 ,y ,x
@@ -210,7 +209,7 @@ class TextWindow < Window
 		refresh
 	end
 end
-class HostBrowser < Window
+class Web < Area
 	attr_reader :ip, :name, :services
 	def initialize n #text, x=MENU.maxx+1, y=TOP #CONF[:top]
 		super 0, 0 , 0 , 0
@@ -233,6 +232,7 @@ CONF = { 	spacing: 1,
 				 	left: 1,
 				 	bottom: 1,
 				 	limit: 6,				 	
+					term: "'urxvt -e '",
 					colors: {	#			R			G			B
 						default:  	[ 100, 100, 100 ],						
 						type: 			[ 700, 700, 300 ],
@@ -254,7 +254,7 @@ MENU = List.new ({ entries: [Directory.new( "/", "root" ),
 									  Recent.new,
 									  Frequent.new( "frequent"),
 									  HostList.new( ENV["HOME"]+"/.hostlist/","web"),
-									  Executable.new("/usr/bin/file") ],
+									  Executable.new("/usr/bin/find") ],
 										x: LEFT, y: TOP, limit:LIMIT  })
 
  #<= devices, 
@@ -262,7 +262,7 @@ MENU = List.new ({ entries: [Directory.new( "/", "root" ),
  #<= processes, parameters 
 #<= hotplugged devices 
 
-HELP = TextWindow.new <<H
+HELP = Text.new <<H
  <= all items 
  <= user directory
  <= current working directory
@@ -270,7 +270,7 @@ HELP = TextWindow.new <<H
  <= most used items
  <= host browser
     
-    Orb - Open Resource Browser
+    Orb - Omnipercipient Resource Browser
     
     a) type in the option, when highlighted, press TAB to select.
     b) move your pointer over the option and click left for default action and right for action list
@@ -283,12 +283,11 @@ LAYOUT = { menu: MENU,
 	 				 #main: CMDBuilder.new("file")  }
 
 # main class
-class ORB # < Window
+class ORB 
 	def initialize
-		@cmd = ""
+		#@cmd = ""
 		init
 	end
-	  
   def colortest
 		clear
 		COLORS.each_with_index do |color,i|
