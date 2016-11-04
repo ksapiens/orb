@@ -1,0 +1,12 @@
+ <= all items 
+ <= user directory
+ <= current working directory
+ <= history of items
+ <= most used items
+ <= host browser
+    
+    Orb - Omnipercipient Resource Browser
+    
+    a) type in the option, when highlighted, press TAB to select.
+    b) move your pointer over the option and click left for default action and right for action list
+    c) tap for default, twofinger tap for actions
