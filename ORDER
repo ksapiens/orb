@@ -10,10 +10,10 @@ recursion
 mime types
 aliases
 
-
 video background
 opengl interface
 	jpeg generation, cairo?
+xlib, window manager
 
 #TODO
 
@@ -34,7 +34,7 @@ coloring
 		int
 		brackets
 
-persistent undo history, root only
+persistent undo history, allways root 
 	text 
 	files
 	modules
@@ -45,11 +45,8 @@ default order
 	.6 recent	timestamp ondemand scan
 	.4 frequent .bash/zsh_history
 
-superlist or director?
-
 item create list down and right
 list collapse toggle onclick 
-stage? 
 
 tag mixing in list
 	sources:

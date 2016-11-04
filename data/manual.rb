@@ -13,7 +13,7 @@ class ManPage
 		@page = Hash[*txt.split( /(^[[:upper:]].*)/ )[3..-1]]
 		#[options, page]
 	end
-	def dump what=:sections
+	def dump what = :sections
 		puts @options.keys if what.to_sym == :options
 		puts @page.keys if what.to_sym == :sections
 	end
