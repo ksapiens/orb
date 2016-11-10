@@ -12,12 +12,10 @@ aliases
 
 video background
 opengl interface
-	jpeg generation, cairo?
+	jpeg generation, cairo, pango
 xlib, window manager
 
-#TODO
-
-name unix X
+name: unix X
 	Z
 	uni 
 	earth
@@ -34,7 +32,7 @@ coloring
 		int
 		brackets
 
-persistent undo history, allways root 
+persistent undo history, only root 
 	text 
 	files
 	modules
@@ -45,24 +43,18 @@ default order
 	.6 recent	timestamp ondemand scan
 	.4 frequent .bash/zsh_history
 
-item create list down and right
-list collapse toggle onclick 
-
 tag mixing in list
 	sources:
 		for hosts ( localhost or other )
 			url ( 
 			ip, dns, http meta info
-			pathna mes ( file system or ftp/smb/nfs/http
+			pathnames ( file system or ftp/smb/nfs/http
 			mime types
 			tags
 			services
 
 menu: 
-	pinned left for split screen
-	every stage uses full page
 	default order: default+recent+frequent / char
-
 
 	*executable <-  live process signaling
 									modules <- switch loaded kernel modules
@@ -77,12 +69,6 @@ types <- all mime types
 	image
 	audio
 	video
-	
-						
-tree
-	root <- all files 
-	home <- home directory 
-	wdir <- working directory
 	
 config <- 
 	/etc / 
@@ -127,16 +113,5 @@ network <- port scan - run default app
 								rpm
 							db
 								sql
-
-
-
-(rainbow)
-red
-orange
-yellow
-brown
-green
-blue
-violet
 
 
