@@ -1,16 +1,20 @@
+#!/usr/bin/ruby
 # ORB - Omnipercipient Resource Browser
 # 
-# 	Manual Page Backend
+# 	Manual Page Parser
 #
 # copyright 2016 kilian reitmayr
 
 class ManPage
 	attr_reader :options, :page
 	def initialize cmd
-		#ENV["COLUMNS"] = 2
-	  txt = `man #{cmd}`.gsub /\n.*\n.*\z/, ""
-		@options = Hash[*txt.split( /^[[:blank:]]+(-.+)$/ )[1..-1]]
-		@page = Hash[*txt.split( /(^[[:upper:]].*)/ )[3..-1]]
+		ENV["COLUMNS"] = "3000"
+	  txt = `man --nj --nh #{cmd}` #.gsub /\n.*\n.*\z/, ""
+		
+		@page = Hash[*txt.split( 
+			/(^[[:upper:]].*)/ )[3..-1]]
+		@options = Hash[*@page["OPTIONS"].split( 
+			/^\s+(-+.+)\n? {4,}/ )[1..-1]]
 		#[options, page]
 	end
 	def dump what = :sections
@@ -22,3 +26,5 @@ class ManPage
 	end
 	
 end
+
+eval "ManPage.new('%s').%s '%s'" %  [ $*[0], $*[1], $*[2..-1].join(" ") ] if __FILE__ == $0
