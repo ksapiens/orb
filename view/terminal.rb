@@ -12,22 +12,49 @@ include Curses
 
 class Area < Window 
 	alias :left :begx
-	alias :right :maxx
+	alias :width :maxx
 	alias :top :begy
-	alias :bottom :maxy
-	include Generic	
-	
+	alias :height :maxy
+	def right; left + width; end
+	def bottom; top + height; end
+	include Generic		
+
 	def initialize args 
 		parse args 
-		super 0,0, @y||TOP, @x||LEFT 
+		super @height||lines-TOP-BOTTOM, @width||0, @y||TOP, @x||LEFT
+	end
+	
+	def draw 
+		clear
+		yield		
+		box '|', '-' if $DEBUG
+		("^" * width).draw :text,0,0,self if @pageup
+		("V" * width).draw :text,0,height-1,self if @pagedown
+		refresh
+	end
+	def page direction
+		LOG.debug direction	
+		scrl (direction == :down ? 1:-1) * height
+		#refresh
+	end
+	def primary x,y
+		
+		if y==height-1 && @pagedown 			
+			page :down
+		elsif y==0 && @pageup
+			page :up
+		else
+			return false#10#true		
+		end
 	end
 end
 
 class String
 #	def draw color = :default, brightness=0, x, y, area
-	def draw color = :default, x, y, area
-		area.setpos y ,x
+	def draw color=:default, x=nil, y=nil, area
+		area.setpos y ,x if x && y
 #		area.attron( color_pair(COLORS.keys.index(color))|A_BOLD )
+
 		id = COLORS.keys.index(color)
 		#LOG.debug " %s,%s,%s " % COLORS[color]
 		#COLORS[color].map!{ |value| value+=brightness } if brightness>0

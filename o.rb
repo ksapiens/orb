@@ -9,12 +9,15 @@
 $LOAD_PATH << "#{File.dirname __FILE__}/."
 require 'view/terminal'
 require 'logger'
-require "data/manual.rb"
+require "manual.rb"
 require "helpers.rb"
 require "entities.rb"
 require "areas.rb"
 
+
+
 LOG = Logger.new("orb.log")
+#$DEBUG = true
 
 # Globals
 CONF = { 	spacing: 1,
@@ -23,20 +26,28 @@ CONF = { 	spacing: 1,
 				 	left: 1,
 				 	bottom: 1,
 				 	limit: 12,				 	
-					term: "'urxvt -e '",
+					term: "'urxvt -hold -e '",
 					colors: {	#			R			G			B
-						default:  	[ 100, 100, 100 ],						
+						default:  	[ 100, 100, 100 ],
+						text: 			[ 700, 700, 700 ],						
 						type: 			[ 300, 300, 700 ],
 						executable: [ 700, 300, 300 ],
 						item: 			[ 300, 700, 300 ],
 						chardevice: [ 300, 700, 700 ],
-						blockdevice:[ 700, 300, 700 ],
+						section:		[ 500, 500, 300 ],
 						special: 		[ 700, 300, 700 ],
 						directory: 	[ 700, 700, 100 ],
-						host: 			[ 100, 300, 700 ],
+						builder: 		[ 300, 300, 500 ],
+						option: 		[ 500, 300, 300 ],
+						prompt: 		[ 100, 500, 300 ],
+						command: 		[ 500, 500, 100 ],
+						description:[ 300, 300, 300 ],
 						highlight: 	[ 200, 200, 200 ] } }
 CONF.each{ |k,v| eval "%s=%s" % [k.upcase, v] }#.to_s +"="+ v.to_s }
-MENU = List.new ({ entries: [Directory.new( "/", "root" ),
+
+init
+
+MENU = List.new ({ content: [Directory.new( "/", "root" ),
 									 	Directory.new( ENV["HOME"], "home" ),
 									  Directory.new( ENV["PWD"], "work"),
 									  #Type.new( "text", "/" ),
@@ -54,40 +65,44 @@ MENU = List.new ({ entries: [Directory.new( "/", "root" ),
  #<= processes, parameters 
 #<= hotplugged devices 
 
+
+LOG.debug "lines : #{lines}"
+
 HELP = Text.new( { 
-	entries: (open "help.txt").read, 
+	content: (open "help.txt").read, 
 	x: MENU.right + MARGIN, y: TOP } )
 
-WORKSPACE = [ MENU, HELP ]
+COMMAND = Command.new( {
+	prompt: ENV["HOME"] + "> ", input: [],
+	x: LEFT, y: lines - BOTTOM } ) 
 
-@cmd = ""
-class Command
-	#def initialize args
-end
+WORKSPACE = [ COMMAND, MENU, HELP ]
 
 # main class
 class ORB 
 	def initialize
-		#@cmd = ""
-		init
-		ENV["COLUMNS"] = (cols-LIMIT-10).to_s
+
+		#ENV["COLUMNS"] = (cols-LIMIT-10).to_s
 	end
   def colortest
 		clear
 		COLORS.each_with_index do |color,i|
-			"#{color[0]} - #{color_content i}".draw color[0],-20,5,i,Curses
+			"#{color[0]} - #{color_content i}".draw color[0],5,i,Curses
 		end
+		input = getch #Event.poll 
 	end
 	def run
 		loop do
 			clear
 			refresh
 			WORKSPACE.each( &:draw )
+			#COMMAND.draw
     	input = getch #Event.poll 
-			refresh  
+			#refresh  
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
+    			#COMMAND.primary if mouse.y == lines-BOTTOM
 					#LOG.debug "x: %s y: %s SESSION: %s" % [mouse.x, mouse.y, SESSION.length]
 					for area in WORKSPACE
 						if 	mouse.x.between?( area.left, area.right ) && 
@@ -101,8 +116,8 @@ class ORB
 				when KEY_F12
 					colortest
         else
-        	@cmd += input
-        	LOG.debug @cmd
+        	#@cmd += input
+        	#LOG.debug @cmd
     	end
     end
   end

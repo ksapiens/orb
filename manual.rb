@@ -8,14 +8,14 @@
 class ManPage
 	attr_reader :options, :page
 	def initialize cmd
-		ENV["COLUMNS"] = "3000"
-	  txt = `man --nj --nh #{cmd}` #.gsub /\n.*\n.*\z/, ""
-		
+		txt = `COLUMNS=1000 man --nj --nh #{cmd}`
+		LOG.debug txt
+		return if txt.empty? #start_with? "No"
 		@page = Hash[*txt.split( 
 			/(^[[:upper:]].*)/ )[3..-1]]
-		@options = Hash[*@page["OPTIONS"].split( 
-			/^\s+(-+.+)\n? {4,}/ )[1..-1]]
-		#[options, page]
+		range = @page["OPTIONS"] || @page["DESCRIPTION"]
+		@options = Hash[*range.split( 
+			/^ +(-+.{1,30})\n? {3,}/ )[1..-1]]
 	end
 	def dump what = :sections
 		puts @options.keys if what.to_sym == :options

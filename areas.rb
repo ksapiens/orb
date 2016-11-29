@@ -1,4 +1,3 @@
-
 # ORB - Omnipercipient Resource Browser
 # 
 # 	Areas 
@@ -9,73 +8,133 @@
 class List < Area 
 	def initialize args 
 		super args 
-		@stack = []
-		@range = 0..bottom / SPACING - 3
+		@stack,@start,@original = [], 0, @content
+		#@pagedown = @content.size > height
 		update
 	end
-	def total; (@stack + @entries)[@range];	end
+	def total; @stack + @content; end 
+	def view show=height; total[@start..@start+show]; end
 	def update #x=nil, y=nil 
-		height, width = ( total.length * SPACING ), 0
-		for entry in total 
-			if entry.width.between? width, @limit || cols
-				width = entry.width; end
+		#height, width = view.length, 0
+		new_width = 0
+		new_height = total.length.max( lines - TOP - BOTTOM )
+		
+		for entry in view new_height
+			if entry.width.between? new_width, @limit || cols-left
+				new_width = entry.width; end
 		end
-		resize height.max( lines - TOP - BOTTOM - 1 ), width
+		resize new_height, new_width
+		LOG.debug total.size 
+		LOG.debug height 
+		LOG.debug view.size 
+		@pagedown = total.size > height
 		#move y, x if y && x
 		refresh; end
-	def << (object); @entries << object;	end
-	def [] (index); @entries[index]; end
+	def << (object); @content << object;	end
+	def [] (index); @content[index]; end
 	def draw
-		clear
-		box '|', '-' if $DEBUG
-		total.each_with_index do |entry, i|
-			entry.draw 0,i*SPACING,self
-#			entry.to_s.draw entry.color,i%2*10,0,i*SPACING,self		
+		super do
+			for entry in view
+				entry.draw self
+			end
 		end
-		refresh
-		#LOG.debug "#{total}"
+	end
+	def page direction
+		if direction == :down
+		
+			@start += height - 2
+			@pagedown = view[-1] != total[-1]
+			@pageup = true
+		elsif direction == :up
+			@start -= height - 2
+			@pageup = view[0] != total[0]
+			@pagedown = true
+		end
 	end
 	def primary x,y
-		target = total[ (y - top) / SPACING ]
-		content = target.primary @entries # TODO dont restore but click previous in stack
-		if content[:right]
-			WORKSPACE[(WORKSPACE.index self)+1..-1]=nil
-			WORKSPACE[-1] = ( content[:right].is_a?(String) ? 
-				Text : List).new( {
-				entries: content[:right],
-				x: right+1+MARGIN, y: TOP
-			} ) 
-		end
-		if content[:down]
-			if target.active
-				@stack << target 
-			else
-				index = @stack.index target
-				@stack = index == 0 ? [] : @stack[0..index-1]
+		x -= left; y -= top
+		return if super x,y 
+		#LOG.debug testa
+		target = view[ y ]
+		if @stack.include? target
+			index = @stack.index target
+			if index == 0
+				@stack = []
+				target.toggle 
+				@content = @original
+				WORKSPACE.pop
+				update
+				return
+			else 
+				@stack = @stack[0..index-1]
+				target = @stack.pop
+				target.toggle
 			end
-			@entries = content[:down]
+		end
+		result = target.primary 
+		#LOG.debug result
+		if result[:down]
+			target.toggle
+		 	@stack << target
+			@content = result[:down]
+			@start,@pageup = 0,false
 			update
 		end
+		if result[:right]
+			WORKSPACE[(WORKSPACE.index self)+1..-1]=nil
+			WORKSPACE[-1] = ( result[:right].is_a?(String) ? 
+				Text : List).new( {
+				content: result[:right],
+				x: right+1+MARGIN, y: TOP, 
+				height: lines - TOP - BOTTOM - 1#, limit: LIMIT
+			} ) 
+		end		
 	end
 end
 class Text < Area
+	def initialize args
+		super args
+		@pagedown = true
+		@pageup = true
+	end
 	def draw
-		clear
-		box '|', '-' if $DEBUG
-		@entries.draw :default,0,0,self
-		refresh
+		super do
+			@content.draw :text,self
+		end
+	end
+	def primary x,y
+		x -= left; y -= top
+		super x,y
 	end
 end
+
+
+class Command < Area
+	attr_accessor :prompt, :input
+	#def initialize args
+	#	super args
+	#end
+	def to_s
+		@input.map(&:name).join(" ")
+	end
+	def draw
+		super do
+			@prompt.draw :prompt,self
+		  to_s.draw :command,self
+		end
+	end
+	def primary x=nil,y=nil
+		LOG.debug "%s %s" % [TERM, to_s]
+		system "%s %s" % [TERM, to_s]
+	end
+	
+end
+
 class Web < Area
 	attr_reader :ip, :name, :services
 	def initialize n 
 		super 0, 0 , 0 , 0
 		@name = n
 	end
-	def draw
-		clear
-		box '|', '-' if $DEBUG
-		#text.draw 0, 0, :default, self
-		refresh
-	end
+	
 end	

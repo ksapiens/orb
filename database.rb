@@ -1,3 +1,6 @@
+#!/usr/bin/ruby
+#$LOAD_PATH << "#{File.dirname __FILE__}/lib/"
+
 #require 'rubygems'
 require 'sequel'
 require 'logger'
@@ -71,7 +74,7 @@ class Type < Sequel::Model
   many_to_one :parent, :class => self
 end
 
-class DBManager
+class DataBase#DBManager
 	#TAGS = {}
 	#%w{ executable owned }
 #  def recurse path, data = {:types => [], :items => []}
@@ -172,3 +175,8 @@ class DBManager
 HELP
   end
 end
+
+#puts eval("%s '%s'" % ARGV) if !ARGV.empty?
+#p $0
+eval "DataBase.new.%s '%s'" %  [ $*[0], $*[1..-1].join(" ") ] #if $0 == "unite"#unless $*.empty?
+#eval "%s '%s'" % ARGV rescue help if ARGV
