@@ -1,0 +1,20 @@
+---
+- !ruby/object:Directory
+  path: "/"
+  name: root
+- !ruby/object:Directory
+  path: "/home/key"
+  name: home
+- !ruby/object:Directory
+  path: "/home/key/out/active/orb"
+  name: work
+- !ruby/object:Recent
+  name: recent
+- !ruby/object:Frequent
+  name: frequent
+- !ruby/object:Directory
+  path: "/home/key/.hostlist/"
+  name: web
+- !ruby/object:Executable
+  path: "/usr/bin/find"
+  name: find

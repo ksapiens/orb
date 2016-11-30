@@ -7,7 +7,7 @@
 
 $LOAD_PATH << "#{File.dirname __FILE__}/.."
 require 'curses'
-require "helpers.rb"
+#require "helpers.rb"
 include Curses
 
 class Area < Window 
@@ -15,38 +15,9 @@ class Area < Window
 	alias :width :maxx
 	alias :top :begy
 	alias :height :maxy
-	def right; left + width; end
-	def bottom; top + height; end
-	include Generic		
+	def right; left + width - 1; end
+	def bottom; top + height - 1; end
 
-	def initialize args 
-		parse args 
-		super @height||lines-TOP-BOTTOM, @width||0, @y||TOP, @x||LEFT
-	end
-	
-	def draw 
-		clear
-		yield		
-		box '|', '-' if $DEBUG
-		("^" * width).draw :text,0,0,self if @pageup
-		("V" * width).draw :text,0,height-1,self if @pagedown
-		refresh
-	end
-	def page direction
-		LOG.debug direction	
-		scrl (direction == :down ? 1:-1) * height
-		#refresh
-	end
-	def primary x,y
-		
-		if y==height-1 && @pagedown 			
-			page :down
-		elsif y==0 && @pageup
-			page :up
-		else
-			return false#10#true		
-		end
-	end
 end
 
 class String
@@ -66,7 +37,8 @@ end
 def init
 	init_screen
 	start_color
-	crmode
+	nonl
+	cbreak
 	noecho
   curs_set 0
   mousemask(ALL_MOUSE_EVENTS)

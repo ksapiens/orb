@@ -7,8 +7,8 @@
 
 class ManPage
 	attr_reader :options, :page
-	def initialize cmd
-		txt = `COLUMNS=1000 man --nj --nh #{cmd}`
+	def initialize cmd, width=1000 #ENV["COLUMNS"]
+		txt = `COLUMNS=#{width} man --nj --nh #{cmd}`
 		LOG.debug txt
 		return if txt.empty? #start_with? "No"
 		@page = Hash[*txt.split( 

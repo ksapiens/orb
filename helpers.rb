@@ -12,6 +12,11 @@ module Generic
 		end	if args.class == Hash		
 	end
 end
+
+class String
+	def file mode="r"; open self, mode; end
+	def read; file.read; end
+end
 		
 class Fixnum
 #	def limit min, max

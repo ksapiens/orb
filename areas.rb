@@ -3,17 +3,60 @@
 # 	Areas 
 #
 # copyright 2016 kilian reitmayr
+require "helpers.rb"
+class Area 
+	include Generic		
+	def initialize args 
+		parse args 
+		@start = 0		
+		#@pageup = false
+		super @height||lines-TOP-BOTTOM, @width||0, @y||TOP, @x||LEFT
+		#@pagedown = @content.size > height
+	end
+	def total; @content; end
+	def view show=height; total[@start..@start+show]; end
+	def page direction
+		if direction == :down
+			@start += height - 2
+			@pagedown = view[-1] != total[-1]
+			@pageup = true
+		elsif direction == :up
+			@start -= height - 2
+			@pageup = view[0] != total[0]
+			@pagedown = true
+		end
+	end
+	
+	def draw 
+		clear
+		yield		
+		box '|', '-' if $DEBUG
+		("^" * width).draw :text,0,0,self if @pageup
+		("V" * width).draw :text,0,height-1,self if @pagedown
+		refresh
+	end
+
+	def primary x,y
+		
+		if y==height-1 && @pagedown 			
+			page :down
+		elsif y==0 && @pageup
+			page :up
+		else
+			return false#10#true		
+		end
+	end
+end
 
 # List: manages + renders items
 class List < Area 
 	def initialize args 
 		super args 
-		@stack,@start,@original = [], 0, @content
+		@stack,@original = [], @content
 		#@pagedown = @content.size > height
 		update
 	end
 	def total; @stack + @content; end 
-	def view show=height; total[@start..@start+show]; end
 	def update #x=nil, y=nil 
 		#height, width = view.length, 0
 		new_width = 0
@@ -24,9 +67,9 @@ class List < Area
 				new_width = entry.width; end
 		end
 		resize new_height, new_width
-		LOG.debug total.size 
-		LOG.debug height 
-		LOG.debug view.size 
+		#LOG.debug total.size 
+		#LOG.debug height 
+		#LOG.debug view.size 
 		@pagedown = total.size > height
 		#move y, x if y && x
 		refresh; end
@@ -39,22 +82,10 @@ class List < Area
 			end
 		end
 	end
-	def page direction
-		if direction == :down
-		
-			@start += height - 2
-			@pagedown = view[-1] != total[-1]
-			@pageup = true
-		elsif direction == :up
-			@start -= height - 2
-			@pageup = view[0] != total[0]
-			@pagedown = true
-		end
-	end
 	def primary x,y
 		x -= left; y -= top
 		return if super x,y 
-		#LOG.debug testa
+		
 		target = view[ y ]
 		if @stack.include? target
 			index = @stack.index target
@@ -91,15 +122,22 @@ class List < Area
 		end		
 	end
 end
+
 class Text < Area
 	def initialize args
 		super args
-		@pagedown = true
-		@pageup = true
+		@content = @content.scan(
+			/(.{0,#{width-1}})\s|$/).flatten.compact
+		@pagedown = @content.size > height
+		
+		#@content = @content.lines
 	end
 	def draw
+		#LOG.debug view #@content
 		super do
-			@content.draw :text,self
+			for line in view #@content[@start..height]
+				(line + $/).draw :text,self
+			end
 		end
 	end
 	def primary x,y
@@ -107,7 +145,6 @@ class Text < Area
 		super x,y
 	end
 end
-
 
 class Command < Area
 	attr_accessor :prompt, :input
