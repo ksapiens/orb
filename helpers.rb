@@ -6,11 +6,13 @@
 # copyright 2016 kilian reitmayr
 
 module Generic
-	def parse args
+	def parse args, local = false
 		for key, value in args
-			instance_variable_set "@"+key.to_s, value
+			instance_variable_set "@" + key.to_s, value
+			#local_variable_set key.to_s, value
 		end	if args.class == Hash		
 	end
+		
 end
 
 class String

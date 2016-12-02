@@ -4,6 +4,7 @@
 #
 # copyright 2016 kilian reitmayr
 require "helpers.rb"
+
 class Area 
 	include Generic		
 	def initialize args 
@@ -29,10 +30,10 @@ class Area
 	
 	def draw 
 		clear
-		yield		
+		yield
 		box '|', '-' if $DEBUG
-		("^" * width).draw :text,0,0,self if @pageup
-		("V" * width).draw :text,0,height-1,self if @pagedown
+		("^" * width).draw({ color: :text, y: 0, area: self }) if @pageup
+		("V" * width).draw({ color: :text, y: height-1, area: self }) if @pagedown
 		refresh
 	end
 
@@ -86,7 +87,7 @@ class List < Area
 		x -= left; y -= top
 		return if super x,y 
 		
-		target = view[ y ]
+		return unless target = view[ y ]
 		if @stack.include? target
 			index = @stack.index target
 			if index == 0
@@ -136,7 +137,7 @@ class Text < Area
 		#LOG.debug view #@content
 		super do
 			for line in view #@content[@start..height]
-				(line + $/).draw :text,self
+				(line + $/).draw color: :text, area: self
 			end
 		end
 	end
@@ -156,8 +157,8 @@ class Command < Area
 	end
 	def draw
 		super do
-			@prompt.draw :prompt,self
-		  to_s.draw :command,self
+			@prompt.draw({ color: :prompt, area: self }) if @pageup
+		  to_s.draw({ color: :command, area: self }) if @pageup
 		end
 	end
 	def primary x=nil,y=nil

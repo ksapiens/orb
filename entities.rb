@@ -1,4 +1,3 @@
-
 # ORB - Omnipercipient Resource Browser
 # 
 # 	Entities
@@ -10,8 +9,18 @@ class Item
 	attr_reader :active
 	def to_s; @name; end
 	def draw x=nil, y=nil, area#=@area
-		((@active ? "> " : "") + @name)[0..area.width-1].draw color, x, y, area
-		$/.draw area unless x && y || area.width <= width
+		view = ((@active ? "> " : "") + @name)[0..area.width-1]
+		index = view.downcase.index $filter unless $filter.empty?
+		if index
+			$selection << [ area.curx+area.left, area.top+area.cury ]
+			view[0..index-1].draw color: color, area: area if index > 0
+			#LOG.debug "%s - %s" % [ area.curx + area.left, area.top + area.cury ]
+			view[index,$filter.length].draw ({	
+				color: color, area: area, highlight: true })
+			view[index+$filter.length..-1].draw color: color, area: area		else
+			view.draw color: color, area: area
+		end
+		$/.draw area: area unless x && y || area.width <= width
 	end
 	def width; @name.length + (@active ? 2 : 0); end
 	def color 
@@ -43,9 +52,9 @@ class Option < Special
 	end
 	def width; (@name+@description).length; end
 	def draw x=nil, y=nil, area
-		("%-9s" % @name[0..9]).draw color, x, y, area
-		@description[0..area.width-11].draw :description, x, y, area
-		$/.draw area
+		("%-9s" % @name[0..9]).draw({ color:color, x:x, y:y, area:area })
+		@description[0..area.width-11].draw ({ color: :description, x:x, y:y, area:area })
+		$/.draw({ area:area })
 	end
 	def primary
 		if COMMAND.input.include? self
@@ -107,6 +116,7 @@ class Executable < Entry
 		  	right: man.page["NAME"] }
 		else
 			COMMAND.primary
+			{}
 		end
 	end 
 end
@@ -121,7 +131,7 @@ class Directory < Entry
     	if type != "directory" && FileTest.executable?(path)
   			type = "executable";end
 
-      entry = eval( "%s.new '%s'" % [type.capitalize, path])
+      entry = eval "#{type.capitalize}.new %q[#{path}]" 
     	
     	if type == "directory"
     		@entries[:down] << entry

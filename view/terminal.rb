@@ -7,7 +7,7 @@
 
 $LOAD_PATH << "#{File.dirname __FILE__}/.."
 require 'curses'
-#require "helpers.rb"
+require "helpers.rb"
 include Curses
 
 class Area < Window 
@@ -21,16 +21,19 @@ class Area < Window
 end
 
 class String
+	#include Generic
 #	def draw color = :default, brightness=0, x, y, area
-	def draw color=:default, x=nil, y=nil, area
-		area.setpos y ,x if x && y
-#		area.attron( color_pair(COLORS.keys.index(color))|A_BOLD )
-
-		id = COLORS.keys.index(color)
+	def draw args
+		#args = parse args, true
+		#highlight=false, color=:default, x=nil, y=nil, area
+		args[:area].setpos args[:y]||0 ,args[:x]||0 if args[:x] || args[:y]
+		args[:area].attron( A_STANDOUT ) if args[:highlight]
+		#args[:area].attron( A_BOLD ) if args[:highlight]
+		id = COLORS.keys.index(args[:color]||:default)
 		#LOG.debug " %s,%s,%s " % COLORS[color]
-		#COLORS[color].map!{ |value| value+=brightness } if brightness>0
-		area.attron( color_pair(id)  )
-		area.addstr self 
+		args[:area].attron( color_pair(id)  )
+		args[:area].addstr self 
+		args[:area].attroff( A_STANDOUT ) if args[:highlight]
 	end
 end
 
