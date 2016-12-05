@@ -9,17 +9,7 @@ class Item
 	attr_reader :active
 	def to_s; @name; end
 	def draw x=nil, y=nil, area#=@area
-		view = ((@active ? "> " : "") + @name)[0..area.width-1]
-		index = view.downcase.index $filter unless $filter.empty?
-		if index
-			$selection << [ area.curx+area.left, area.top+area.cury ]
-			view[0..index-1].draw color: color, area: area if index > 0
-			#LOG.debug "%s - %s" % [ area.curx + area.left, area.top + area.cury ]
-			view[index,$filter.length].draw ({	
-				color: color, area: area, highlight: true })
-			view[index+$filter.length..-1].draw color: color, area: area		else
-			view.draw color: color, area: area
-		end
+		((@active ? "> " : "") + @name)[0..area.width-1].draw	color: color, area: area, selection: true
 		$/.draw area: area unless x && y || area.width <= width
 	end
 	def width; @name.length + (@active ? 2 : 0); end
@@ -37,7 +27,6 @@ class Special < Item; end
 class Option < Special
 	attr_reader :name, :delimiter, :parameter, :description
 	def initialize outline, description
-
 #		if outline.include? ","
 			outline = /(-+([[:alnum:]]+)?)([\ =]?)(.*)$/.match	\
 				outline.split(",")[-1]
@@ -52,9 +41,11 @@ class Option < Special
 	end
 	def width; (@name+@description).length; end
 	def draw x=nil, y=nil, area
-		("%-9s" % @name[0..9]).draw({ color:color, x:x, y:y, area:area })
-		@description[0..area.width-11].draw ({ color: :description, x:x, y:y, area:area })
-		$/.draw({ area:area })
+		@name[0..9].ljust(10).draw \
+			color:color, area:area, selection: true
+		@description[0..area.width-11].draw \
+			color: :description, area:area 
+		#$/.draw({ area:area })
 	end
 	def primary
 		if COMMAND.input.include? self

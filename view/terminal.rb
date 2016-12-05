@@ -10,37 +10,72 @@ require 'curses'
 require "helpers.rb"
 include Curses
 
+KEY_ESC = 27
+KEY_TAB = 9
+
 class Area < Window 
+	include Generic
+	attr_accessor :focus
 	alias :left :begx
 	alias :width :maxx
 	alias :top :begy
 	alias :height :maxy
+	#alias :"<<" :addstr
 	def right; left + width - 1; end
 	def bottom; top + height - 1; end
-
+	
+	def initialize args 
+		parse args 
+		super @height||lines-TOP-BOTTOM, 
+			@width||0, @y||TOP, @x||LEFT
+	end
+	def draw 
+		clear
+		yield
+		box '|', '-' if $DEBUG
+		refresh
+	end
+	def toggle
+		if @highlight = !@highlight
+			attron( A_STANDOUT )
+		else
+			attroff( A_STANDOUT )
+		end
+	end
+	def paging?; end
+	def page d; end
 end
 
+
 class String
-	#include Generic
-#	def draw color = :default, brightness=0, x, y, area
 	def draw args
-		#args = parse args, true
-		#highlight=false, color=:default, x=nil, y=nil, area
-		args[:area].setpos args[:y]||0 ,args[:x]||0 if args[:x] || args[:y]
-		args[:area].attron( A_STANDOUT ) if args[:highlight]
-		#args[:area].attron( A_BOLD ) if args[:highlight]
+		area = args[:area]
 		id = COLORS.keys.index(args[:color]||:default)
+		area.attron color_pair(id)  
+		area.setpos args[:y]||0 ,args[:x]||0 if args[:x] || args[:y]
+		area.toggle if args[:highlight]
+		index = self.downcase.index $filter \
+			unless $filter.empty? || !args[:selection]
+		if index
+			$selection << [ area.curx+area.left, area.top+area.cury ]
+			area.addstr self[0..index-1] if index > 0
+			#LOG.debug "%s - %s" % [ area.curx + area.left, area.top + area.cury ]
+			area.toggle
+			area.addstr self[index,$filter.length]
+			area.toggle
+			area.addstr self[index+$filter.length..-1]
+		else
+			area.addstr self
+		end
+		area.toggle if args[:highlight]
 		#LOG.debug " %s,%s,%s " % COLORS[color]
-		args[:area].attron( color_pair(id)  )
-		args[:area].addstr self 
-		args[:area].attroff( A_STANDOUT ) if args[:highlight]
 	end
 end
 
 def init
 	init_screen
 	start_color
-	nonl
+#	nonl
 	cbreak
 	noecho
   curs_set 0

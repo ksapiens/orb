@@ -5,73 +5,60 @@
 # copyright 2016 kilian reitmayr
 require "helpers.rb"
 
-class Area 
-	include Generic		
-	def initialize args 
-		parse args 
+class Pager < Area 
+	
+	def initialize args 	
 		@start = 0		
-		#@pageup = false
-		super @height||lines-TOP-BOTTOM, @width||0, @y||TOP, @x||LEFT
-		#@pagedown = @content.size > height
+		super args
+			#LOG.debug total.size 
 	end
 	def total; @content; end
-	def view show=height; total[@start..@start+show]; end
+	def view show=height; total[@start..@start+show-1]; end
+	def paging?; total.size > view.size ; end
+	def pageup?; @start > 0; end
+	def pagedown?; view[-1] != total[-1]; end
 	def page direction
-		if direction == :down
-			@start += height - 2
-			@pagedown = view[-1] != total[-1]
-			@pageup = true
-		elsif direction == :up
-			@start -= height - 2
-			@pageup = view[0] != total[0]
-			@pagedown = true
-		end
+		return unless ( direction == NEXT ? pagedown? : pageup? )
+		@start += direction * (height - 2)
 	end
 	
 	def draw 
-		clear
-		yield
-		box '|', '-' if $DEBUG
-		("^" * width).draw({ color: :text, y: 0, area: self }) if @pageup
-		("V" * width).draw({ color: :text, y: height-1, area: self }) if @pagedown
-		refresh
+		super do
+			yield
+			("^" * width).draw \
+				highlight: @focus, color: :text, y: 0, area: self if pageup?
+			("V" * width).draw \
+				highlight: @focus, color: :text, y: height-1, area: self if pagedown?
+		end
 	end
 
 	def primary x,y
-		
-		if y==height-1 && @pagedown 			
-			page :down
-		elsif y==0 && @pageup
-			page :up
+		if y==height-1 && pagedown?
+			page 1
+		elsif y==0 && pageup?
+			page -1
 		else
-			return false#10#true		
+			return false#10#true
 		end
 	end
 end
 
 # List: manages + renders items
-class List < Area 
+class List < Pager 
 	def initialize args 
 		super args 
 		@stack,@original = [], @content
-		#@pagedown = @content.size > height
 		update
 	end
 	def total; @stack + @content; end 
 	def update #x=nil, y=nil 
-		#height, width = view.length, 0
 		new_width = 0
 		new_height = total.length.max( lines - TOP - BOTTOM )
-		
 		for entry in view new_height
 			if entry.width.between? new_width, @limit || cols-left
 				new_width = entry.width; end
 		end
 		resize new_height, new_width
-		#LOG.debug total.size 
-		#LOG.debug height 
-		#LOG.debug view.size 
-		@pagedown = total.size > height
 		#move y, x if y && x
 		refresh; end
 	def << (object); @content << object;	end
@@ -113,6 +100,7 @@ class List < Area
 			update
 		end
 		if result[:right]
+			@limit = LIMIT
 			WORKSPACE[(WORKSPACE.index self)+1..-1]=nil
 			WORKSPACE[-1] = ( result[:right].is_a?(String) ? 
 				Text : List).new( {
@@ -124,7 +112,7 @@ class List < Area
 	end
 end
 
-class Text < Area
+class Text < Pager
 	def initialize args
 		super args
 		@content = @content.scan(
@@ -152,13 +140,15 @@ class Command < Area
 	#def initialize args
 	#	super args
 	#end
+	#def paginate?; false; end	
 	def to_s
 		@input.map(&:name).join(" ")
 	end
+	def total; [ @to_s ]; end
 	def draw
 		super do
-			@prompt.draw({ color: :prompt, area: self }) if @pageup
-		  to_s.draw({ color: :command, area: self }) if @pageup
+			@prompt.draw({ color: :prompt, area: self })
+		  to_s.draw({ color: :command, area: self }) 
 		end
 	end
 	def primary x=nil,y=nil
