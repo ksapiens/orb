@@ -25,14 +25,16 @@ MENU = List.new ({ content: [
 	Directory.new( "/", "root" ),
 	Directory.new( ENV["HOME"], "home" ),
 	Directory.new( ENV["PWD"], "work"),
+	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
+		Directory.new path }, "apps" ),
 	#Type.new( "text", "/" ),
 	#Type.new( "image", "/" ),
 	#Type.new( "video", "/" ),
-	Recent.new,
-	Frequent.new( "frequent"),
-	Directory.new( ENV["HOME"]+"/.hostlist/","web"),
+	#Recent.new,
+	#Frequent.new( "frequent"),
+	#Directory.new( ENV["HOME"]+"/.hostlist/","web") ],
 	Executable.new("/usr/bin/find") ],
-	x: LEFT, y: TOP, limit:LIMIT  
+	x: LEFT, limit: LIMIT 
 })
 
 #MENU = List.new ({ content: 
@@ -40,17 +42,18 @@ MENU = List.new ({ content: [
 #	x: LEFT, y: TOP, limit:LIMIT  
 #	})
 
-HELP = Text.new( { 
-	content: "help.txt".read, 
-	x: MENU.right + MARGIN, y: TOP } )
-
-COMMAND = Command.new( {
-	prompt: ENV["PWD"] + "> ", input: [],
-	x: LEFT, y: lines - BOTTOM } ) 
-
-WORKSPACE = [ COMMAND, MENU, HELP ]
+HELP = Text.new	content: "help.txt".read, x: MENU.right + MARGIN
+STACK = Line.new prefix: ">", delimiter: " / ", content:[],	
+	x: LEFT, y: 0
+COMMAND = Command.new
+CMDLINE = Line.new content: [Prompt.new, COMMAND],
+	x: LEFT, y: lines - BOTTOM
 
 NEXT, PREVIOUS = 1, -1
+#HORIZONTAL = 
+
+$workspace = [ STACK, CMDLINE, MENU, HELP ]
+$history = { apps: {}, directory: [], web: [] }
 $filter=""
 $selection = []
 $focus = 1
@@ -67,10 +70,11 @@ class ORB
 		getch 
 	end
 	def primary x, y
-	#LOG.debug "x: %s y: %s" % [x, y]
-		for area in WORKSPACE
+	
+		for area in $workspace
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
+				LOG.debug "x: %s y: %s" % [area, y]
 				area.primary x, y 
 				break
 			end
@@ -78,19 +82,19 @@ class ORB
 		cycle NEXT
 	end
 	def cycle direction
-		WORKSPACE[$focus].focus = false
-		LOG.debug WORKSPACE.size#-1 #$focus
+		$workspace[$focus].focus = false
+		#LOG.debug $workspace.size#-1 #$focus
 		$focus += direction
-		$focus = 0 if $focus > WORKSPACE.size-1
-		$focus = WORKSPACE.size-1 if $focus < 0
-		#cycle direction unless WORKSPACE[$focus].paging?
-		WORKSPACE[$focus].focus = true
+		$focus = 0 if $focus > $workspace.size-1
+		$focus = $workspace.size-1 if $focus < 0
+		#cycle direction unless $workspace[$focus].paging?
+		$workspace[$focus].focus = true
 	end
 	def run
 		loop do
 			clear
 			refresh
-			WORKSPACE.each( &:draw )
+			$workspace.each( &:draw )
     	input = getch #Event.poll 
 			LOG.debug input #$filter
     	case input
@@ -104,9 +108,9 @@ class ORB
 				when KEY_BACKSPACE
 					$filter.chop!
 				when KEY_NPAGE
-					WORKSPACE[$focus].page NEXT
+					$workspace[$focus].page NEXT
 				when KEY_PPAGE
-					WORKSPACE[$focus].page PREVIOUS
+					$workspace[$focus].page PREVIOUS
 				when KEY_RIGHT
 					cycle NEXT					
 				when KEY_LEFT
@@ -114,6 +118,8 @@ class ORB
 				when KEY_TAB
 					$filter.clear
 					primary *$selection.first
+				when KEY_RETURN #KEY_ENTER || 
+					COMMAND.primary
         when String
 					$filter = "" if $selection.empty?        	
         	$selection.clear

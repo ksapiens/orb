@@ -1,8 +1,5 @@
 history
 persistence
-scrolling
-keyboard support
-command builder
 coloring - Color.shade [-10..10]
 recursion
 	find
@@ -100,7 +97,7 @@ network <- port scan - run default app
 										
 									 
 								
-							ssh <- run baum 
+							ssh <- run orb
 							socks <- connect
 							name - register
 							time - sync

@@ -12,7 +12,7 @@ TERM = "urxvt -hold -e "
 COLORS = {	#			R			G			B
 	default:  	[ 100, 100, 100 ],
 	text: 			[ 700, 700, 700 ],						
-	type: 			[ 300, 300, 700 ],
+	option: 			[ 300, 300, 700 ],
 	executable: [ 700, 300, 300 ],
 	item: 			[ 300, 700, 300 ],
 	chardevice: [ 300, 700, 700 ],
@@ -20,8 +20,8 @@ COLORS = {	#			R			G			B
 	special: 		[ 700, 300, 700 ],
 	directory: 	[ 700, 700, 100 ],
 	builder: 		[ 300, 300, 500 ],
-	option: 		[ 500, 300, 300 ],
+	command: 		[ 500, 300, 300 ],
 	prompt: 		[ 100, 500, 300 ],
-	command: 		[ 500, 500, 100 ],
+	container:	[ 500, 500, 100 ],
 	description:[ 300, 300, 300 ],
 	highlight: 	[ 200, 200, 200 ] }

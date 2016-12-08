@@ -12,6 +12,7 @@ include Curses
 
 KEY_ESC = 27
 KEY_TAB = 9
+KEY_RETURN = 10
 
 class Area < Window 
 	include Generic
@@ -23,15 +24,21 @@ class Area < Window
 	#alias :"<<" :addstr
 	def right; left + width - 1; end
 	def bottom; top + height - 1; end
-	
+
 	def initialize args 
 		parse args 
-		super @height||lines-TOP-BOTTOM, 
-			@width||0, @y||TOP, @x||LEFT
+		super @height||lines-TOP-BOTTOM-1, @width||0, 
+			@y||TOP, @x||$workspace.last.right + MARGIN + 1
 	end
-	def draw 
+
+	def draw &block
 		clear
-		yield
+		#yield
+		if block
+			block.call 
+		else
+			@content.draw self
+		end
 		box '|', '-' if $DEBUG
 		refresh
 	end
