@@ -7,10 +7,8 @@ require "helpers.rb"
 
 class Area
 	def index; $workspace.index self; end
-	def root?; index == 2; end
 	#def primary; @content.primary; end
-	def update; end
-	def << (object); @content << object; update;end
+	#def update; end
 	#def [] (index); @content[index]; end
 end
 class Pager < Area 
@@ -20,20 +18,29 @@ class Pager < Area
 			#LOG.debug total.size 
 	end
 	#def total; @content; end
-	def view show=height;	@content[@start..@start+show-1]; end		
-	def paging?; @content.size > view.size ; end
+	def view 
+		if paging? && !$filter.empty?
+			result = @content.reject{|i| 
+				!i.to_s.downcase.index($filter) }
+		else
+			result = @content
+		end		
+		result[@start..@start+height-1]; 
+	end		
+	def paging?; @content.size > height ; end
 	def pageup?; @start > 0; end
 	def pagedown?; view[-1] != @content[-1]; end
 	def page direction
 		return unless ( direction == NEXT ? pagedown? : pageup? )
 		@start += direction * (height - 2)
 	end
+	def focus?; $focus == index; end
 	def draw 
 		super do
 			yield
-			("^" * width).draw highlight: @focus, color: :text, 
+			("^" * width).draw highlight: focus?, color: :text, 
 				y: 0, area: self if pageup?
-			("V" * width).draw highlight: @focus, color: :text, 
+			("V" * width).draw highlight: focus?, color: :text, 
 				y: height-1, area: self if pagedown?
 		end
 	end
@@ -53,81 +60,56 @@ end
 class List < Pager 
 	def initialize args 
 		super args 
-		#@stack = []
+		#LOG.debug self#height
+		#update #unless $workspace||[]).last == self ? 
+	end
+	def << (object) 
+		$workspace = $workspace[0..index]
+		@content.unshift object
+		@content.uniq!
 		update
 	end
-	#def total; @stack + @content; end 
 	def update #x=nil, y=nil 
 		new_width = 0
-		new_height = @content.length.max( lines - TOP - BOTTOM  )
-		#if $workspace
-		limit = ($workspace||[]).last == self ? 
-			cols-left : LIMIT #@limit
-		#else
-		#	limit = LIMIT
-		#end
 		for entry in @content #total #view new_height
-			if entry.width.between? new_width, limit 
-				new_width = entry.width; end
+			if entry.width > new_width
+				new_width = entry.width.max LIMIT; end
 		end
-		resize new_height, new_width
+		resize height, new_width
 		#move y, x if y && x
 		refresh; end
 	def draw
 		super do
 			for entry in view
-				entry.draw self
+				entry.draw self 				
 				$/.draw area: self unless curx == 0 
 			end
 		end
 	end
 	def primary x=left,y=top
 		x -= left; y -= top
-		LOG.debug @content#view #result
 		return if super x,y 
-
-		return unless target = view[ y ]
-	  $workspace = $workspace[0..index]
-				
-		#if id = STACK.content.index( target )	# @stack.include? targe
+		target = view[ y ]
+		return unless results = target.primary
+		STACK << target unless [Option, Section].index target.class
+		for result in results
+			next if result.empty?#LOG.debug result			
 			
-			#@stack = @stack[0..id]
-			#target = @stack.pop
-			#target.toggle
-		#end
-
-		result = target.primary
-			#$workspace.last.primary 		
-		
-		if result[:down] && !result[:down].empty?
-			#@limit = LIMIT
-			#target.toggle
-		 	if root?
-				$workspace << ( List.new content: result[:down] )		 	
-		 	else
-		 		#STACK << target
-		 		MENU << target
-		 		#MENU.update
-				@content = result[:down]
-				@start = 0
-				update
-			end
+			$workspace << (( result.is_a?(String) ? 
+				TextArea : List).new content: result )
 		end
-		if result[:right] && !result[:right].empty?
-			$workspace << (( result[:right].is_a?(String) ? 
-				Text : List).new content: result[:right] )
-			update
-		end		
+		
+		#$focus = -1
 	end
 end
 
-class Text < Pager
+class TextArea < Pager
 	def initialize args
 		super args
+		#LOG.debug self		
 		@content = @content.scan(
 			/(.{0,#{width-1}})\s|$/).flatten.compact
 #		@pagedown = @content.size > height
-		
 		#@content = @content.lines
 	end
 	def draw
@@ -138,16 +120,21 @@ class Text < Pager
 			end
 		end
 	end
-	def primary x,y
+	def primary x=left,y=top
 		x -= left; y -= top
 		super x,y
 	end
 end
 
 class Line < Area #Pager
+	attr_accessor :content
 	def initialize args
 		@height = 1 unless @height
 		super args
+	end
+	def << (item)
+		@content << item
+		#@content.uniq!
 	end
 	def draw	
 		super do
@@ -158,5 +145,8 @@ class Line < Area #Pager
 			end
 		end
 	end
-	
+	def primary x=left,y=top
+		x -= left; y -= top
+		@content.first.primary self
+	end
 end

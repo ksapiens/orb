@@ -16,25 +16,20 @@ require "manual.rb"
 require "entities.rb"
 require "areas.rb"
 
+NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
 #$DEBUG = true
 eval "config.default".read
 init
 
-MENU = List.new ({ content: [
+STACK = List.new ({ content: [
 	Directory.new( "/", "root" ),
 	Directory.new( ENV["HOME"], "home" ),
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
 		Directory.new path }, "apps" ),
-	#Type.new( "text", "/" ),
-	#Type.new( "image", "/" ),
-	#Type.new( "video", "/" ),
-	#Recent.new,
-	#Frequent.new( "frequent"),
-	#Directory.new( ENV["HOME"]+"/.hostlist/","web") ],
 	Executable.new("/usr/bin/find") ],
-	x: LEFT, limit: LIMIT 
+	x: LEFT#, width:1#, limit: LIMIT 
 })
 
 #MENU = List.new ({ content: 
@@ -42,21 +37,19 @@ MENU = List.new ({ content: [
 #	x: LEFT, y: TOP, limit:LIMIT  
 #	})
 
-HELP = Text.new	content: "help.txt".read, x: MENU.right + MARGIN
-STACK = Line.new prefix: ">", delimiter: " / ", content:[],	
-	x: LEFT, y: 0
-COMMAND = Command.new
-CMDLINE = Line.new content: [Prompt.new, COMMAND],
+HEAD = Line.new content:[ User.new, Item.new("@"), Host.new, 
+	Directory.new(ENV["PWD"],ENV["PWD"]) ],	x: LEFT, y: 0
+COMMAND = Line.new content: [], prefix: "> ", delimiter: " ",
 	x: LEFT, y: lines - BOTTOM
+$workspace = [ HEAD, COMMAND, STACK ]
 
-NEXT, PREVIOUS = 1, -1
-#HORIZONTAL = 
+HELP = TextArea.new	content: "help.txt".read#, width:10 
+#$workspace << HELP
 
-$workspace = [ STACK, CMDLINE, MENU, HELP ]
-$history = { apps: {}, directory: [], web: [] }
+$history = {} # apps: {}, directory: [], web: [] }
 $filter=""
 $selection = []
-$focus = 1
+$focus = 2
 
 # main class
 class ORB 
@@ -70,25 +63,26 @@ class ORB
 		getch 
 	end
 	def primary x, y
-	
+		#LOG.debug $workspace.size #input #$filter
 		for area in $workspace
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
-				LOG.debug "x: %s y: %s" % [area, y]
+				#LOG.debug "x: %s y: %s" % [area, y]
 				area.primary x, y 
 				break
 			end
 		end
+		
 		cycle NEXT
 	end
 	def cycle direction
-		$workspace[$focus].focus = false
-		#LOG.debug $workspace.size#-1 #$focus
-		$focus += direction
-		$focus = 0 if $focus > $workspace.size-1
-		$focus = $workspace.size-1 if $focus < 0
+		$focus = $workspace.each_with_index.map{|w,i| 
+			i if w.paging? && i != $focus }.compact.first
+		LOG.debug $focus
+		#$focus += direction
+		#$focus = 0 if $focus > $workspace.size-1
+		#$focus = $workspace.size-1 if $focus < 0
 		#cycle direction unless $workspace[$focus].paging?
-		$workspace[$focus].focus = true
 	end
 	def run
 		loop do
@@ -96,7 +90,7 @@ class ORB
 			refresh
 			$workspace.each( &:draw )
     	input = getch #Event.poll 
-			LOG.debug input #$filter
+			
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -133,6 +127,7 @@ begin
 		ORB.new.run if __FILE__ == $0
 end
 ensure
+#	LOG.debug "ensure"
 	use_default_colors()
   close_screen
 end

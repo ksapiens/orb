@@ -12,12 +12,12 @@ class ManPage
 		#LOG.debug txt
 		return if txt.empty? #start_with? "No"
 		@page = Hash[*txt.gsub(/^ {7}/,"").split( 
-			/(^[[:upper:]][[[:upper:]] ]{2,}$)/ )[3..-1]]
+			/(^[[:upper:]][[[:upper:]] ]{2,}$)/ )[1..-1]]
 		range = @page["OPTIONS"] || 
 			@page["SWITCHES"] || 
 			@page["DESCRIPTION"] 
 		@options = Hash[*range.split( 
-			/^(-+.{1,30})\n? {3,}/ )[1..-1]]
+			/^(-+.{1,30})\n? {3,}/ ).map(&:strip)[1..-1]]
 	end
 	def dump what = :sections
 		puts @options.keys if what.to_sym == :options

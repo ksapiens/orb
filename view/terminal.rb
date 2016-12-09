@@ -27,18 +27,16 @@ class Area < Window
 
 	def initialize args 
 		parse args 
-		super @height||lines-TOP-BOTTOM-1, @width||0, 
-			@y||TOP, @x||$workspace.last.right + MARGIN + 1
+		$workspace.last.update if $workspace
+		x=@x||($workspace.last.right + MARGIN + 1)
+		#LOG.debug $workspace[-1] if $workspace
+		super @height||lines-TOP-BOTTOM-1, @width||(cols-x), @y||TOP, x
+			
 	end
 
-	def draw &block
+	def draw #&block
 		clear
-		#yield
-		if block
-			block.call 
-		else
-			@content.draw self
-		end
+		yield
 		box '|', '-' if $DEBUG
 		refresh
 	end
@@ -66,7 +64,6 @@ class String
 		if index
 			$selection << [ area.curx+area.left, area.top+area.cury ]
 			area.addstr self[0..index-1] if index > 0
-			#LOG.debug "%s - %s" % [ area.curx + area.left, area.top + area.cury ]
 			area.toggle
 			area.addstr self[index,$filter.length]
 			area.toggle
@@ -90,8 +87,8 @@ def init
 	stdscr.keypad(true)
 	COLORS.each_with_index do |color,i|
 		init_color i, *color[1]
-		init_color i+20, *color[1].map{ |value| value+=100 }
-		init_color i+40, *color[1].map{ |value| value-=100 }
+		#init_color i+20, *color[1].map{ |value| value+=100 }
+		#init_color i+40, *color[1].map{ |value| value-=100 }
 		init_pair i, i, COLOR_BLACK
   end
 end	

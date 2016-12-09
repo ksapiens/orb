@@ -2,7 +2,7 @@
 # GLOBALS
 
 MARGIN = 1
-TOP =  1
+TOP =  2
 LEFT = 1
 BOTTOM = 1
 
@@ -11,17 +11,22 @@ TERM = "urxvt -hold -e "
 
 COLORS = {	#			R			G			B
 	default:  	[ 100, 100, 100 ],
-	text: 			[ 700, 700, 700 ],						
-	option: 			[ 300, 300, 700 ],
+	item: 			[ 700, 700, 700 ],						
+	option: 		[ 300, 300, 700 ],
 	executable: [ 700, 300, 300 ],
-	item: 			[ 300, 700, 300 ],
+	service: 			[ 300, 700, 300 ],
 	chardevice: [ 300, 700, 700 ],
-	section:		[ 500, 500, 300 ],
-	special: 		[ 700, 300, 700 ],
-	directory: 	[ 700, 700, 100 ],
+	fifo: 			[ 400, 600, 600 ],
+	symlink: 		[ 500, 700, 700 ],
+	module: 		[ 700, 300, 700 ],
+	directory: 	[ 500, 500, 100 ],
 	builder: 		[ 300, 300, 500 ],
+	user: 			[ 300, 300, 500 ],
 	command: 		[ 500, 300, 300 ],
-	prompt: 		[ 100, 500, 300 ],
-	container:	[ 500, 500, 100 ],
-	description:[ 300, 300, 300 ],
+	host: 			[ 100, 500, 300 ],
+	socket: 		[ 100, 600, 100 ],
+	container:	[ 700, 700, 100 ],
+	text: 			[ 500, 500, 500 ],						
+	section:		[ 500, 500, 500 ],
+	description:[ 400, 400, 400 ],
 	highlight: 	[ 200, 200, 200 ] }
