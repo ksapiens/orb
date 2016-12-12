@@ -8,7 +8,8 @@
 
 $LOAD_PATH << "#{File.dirname __FILE__}/."
 require 'logger'
-require 'yaml'
+#require 'yaml'
+require 'psych'
 
 require 'view/terminal'
 require "helpers.rb"
@@ -20,17 +21,18 @@ NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
 #$DEBUG = true
 eval "config.default".read
-init
+init if __FILE__ == $0
 
-STACK = List.new ({ content: [
+
+DEFAULT = [
 	Directory.new( "/", "root" ),
 	Directory.new( ENV["HOME"], "home" ),
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
-		Directory.new path }, "apps" ),
-	Executable.new("/usr/bin/find") ],
-	x: LEFT#, width:1#, limit: LIMIT 
-})
+		Directory.new path }, "commands" ),
+	Executable.new("/usr/bin/find") 
+]
+	
 
 #MENU = List.new ({ content: 
 #	Psych.load( "menu.default".read ),
@@ -41,19 +43,64 @@ HEAD = Line.new content:[ User.new, Item.new("@"), Host.new,
 	Directory.new(ENV["PWD"],ENV["PWD"]) ],	x: LEFT, y: 0
 COMMAND = Line.new content: [], prefix: "> ", delimiter: " ",
 	x: LEFT, y: lines - BOTTOM
-$workspace = [ HEAD, COMMAND, STACK ]
+$workspace = [ HEAD, COMMAND ]
 
-HELP = TextArea.new	content: "help.txt".read#, width:10 
+#HELP = TextArea.new	content: "help.txt".read#, width:10 
 #$workspace << HELP
 
-$history = {} # apps: {}, directory: [], web: [] }
+$history = { commands: {}, directory: {}, web: {} }
 $filter=""
 $selection = []
 $focus = 2
 
 # main class
 class ORB 
-#	def initialize; 
+	
+	def initialize
+		"~/.orb".mkdir unless "~/.orb/".exists?
+		if "~/.orb/config".exists?
+			eval "~/.orb/config".read
+		else
+			#"~/.orb/config".touch
+			"./config.default".copy "~/.orb/config"
+		end	
+		if "~/.orb/stack".exists?			
+			$stack = List.new x: LEFT, file: "~/.orb/stack", 
+				content: Psych.load_file( "~/.orb/stack".path )
+		else
+			"~/.orb/stack".touch
+			$stack = List.new x: LEFT, file: "~/.orb/stack"
+			$stack << parse			
+			$stack << DEFAULT
+		end
+		$workspace << $stack
+	end
+	def help
+		$stack << DEFAULT
+		$workspace << HELP
+	end
+	def parse shell="bash" 
+	  log = (ENV["HOME"]+"/."+shell+"_history").read
+	  result = []
+		for lines in log.lines
+			for line in lines.split "|"
+			  parts = line.split(/(-{1,2}[^-]*)/)#[1..-1]
+			  LOG.debug parts				
+				path = `#{shell} -c "which #{parts[0].split[0]} 2> /dev/null"`
+				#LOG.debug path #command
+				next if path.empty?#if path[/: no /] || path[/not found/]
+				#command = command[/aliased to (.*)$/]
+				result << command = Executable.new(path)				 
+				#for option in parts
+					#$history[:commands][name] << 
+				#	options << Option.new( option )
+				#end
+				command.history << Command.new( [command] + 
+					parts[1..-1].reject(&:empty?).map{|part| Option.new part} )
+			end
+		end
+		result
+	end
   def colortest
 		clear
 		COLORS.each_with_index do |color,i|
@@ -72,17 +119,16 @@ class ORB
 				break
 			end
 		end
-		
 		cycle NEXT
 	end
 	def cycle direction
-		$focus = $workspace.each_with_index.map{|w,i| 
-			i if w.paging? && i != $focus }.compact.first
-		LOG.debug $focus
-		#$focus += direction
-		#$focus = 0 if $focus > $workspace.size-1
-		#$focus = $workspace.size-1 if $focus < 0
-		#cycle direction unless $workspace[$focus].paging?
+		return if $workspace.select(&:paging?).empty? #each_with_index.map{|area,index| 
+		#	i if area.paging? && index != $focus }.compact[$focus+direction]
+		#LOG.debug $focus
+		$focus += direction
+		$focus = 0 if $focus > $workspace.size-1
+		$focus = $workspace.size-1 if $focus < 0
+		cycle direction unless $workspace[$focus].paging?
 	end
 	def run
 		loop do
@@ -90,7 +136,7 @@ class ORB
 			refresh
 			$workspace.each( &:draw )
     	input = getch #Event.poll 
-			
+			LOG.debug input
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -99,6 +145,8 @@ class ORB
         	exit
 				when KEY_F12
 					colortest
+				when KEY_F1
+					help
 				when KEY_BACKSPACE
 					$filter.chop!
 				when KEY_NPAGE
@@ -109,20 +157,18 @@ class ORB
 					cycle NEXT					
 				when KEY_LEFT
 					cycle PREVIOUS
-				when KEY_TAB
-					$filter.clear
+				when KEY_TAB					
 					primary *$selection.first
+					$filter.clear
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.primary
         when String
 					$filter = "" if $selection.empty?        	
         	$selection.clear
         	$filter += input
-        	
     	end
     end
   end
-
 begin
 		ORB.new.run if __FILE__ == $0
 end

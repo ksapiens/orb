@@ -12,7 +12,7 @@ include Curses
 
 KEY_ESC = 27
 KEY_TAB = 9
-KEY_RETURN = 10
+KEY_RETURN = 13
 
 class Area < Window 
 	include Generic
@@ -27,13 +27,11 @@ class Area < Window
 
 	def initialize args 
 		parse args 
-		$workspace.last.update if $workspace
-		x=@x||($workspace.last.right + MARGIN + 1)
+		x = @x||($workspace.last.right + MARGIN + 1)
 		#LOG.debug $workspace[-1] if $workspace
-		super @height||lines-TOP-BOTTOM-1, @width||(cols-x), @y||TOP, x
-			
+		super @height||lines-TOP-BOTTOM-1, @width||(cols-x), 
+			@y||TOP, x
 	end
-
 	def draw #&block
 		clear
 		yield
@@ -50,7 +48,6 @@ class Area < Window
 	def paging?; end
 	def page d; end
 end
-
 
 class String
 	def draw args
@@ -79,8 +76,9 @@ end
 def init
 	init_screen
 	start_color
-#	nonl
-	cbreak
+	nonl
+	#cbreak
+	#noraw
 	noecho
   curs_set 0
   mousemask(ALL_MOUSE_EVENTS)

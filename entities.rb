@@ -7,10 +7,12 @@
 require "shellwords"
 
 class Item 
+	attr_reader :name#, :delimiter, :parameter, :description
 	def to_s; @name; end
+	#def inspect; to_s; end
 	def draw area
 		to_s[0..area.width-1].draw	color: color, 
-			area: area, selection: true	
+			area: area, selection: area.is_a?( List	)
 	end
 	def width; to_s.length; end
 	def color 
@@ -25,20 +27,11 @@ class Item
 end
 #class Special < Item; end
 class Option < Item
-	attr_reader :name, :delimiter, :parameter, :description
-	def initialize outline, description
-#		if outline.include? ","
-			outline = /(-+([[:alnum:]]+)?)([\ =]?)(.*)$/.match	\
-				outline.split(",")[-1]
-#		else
-#			outline = /(-+[[:alnum:]]+)([\ =]?)(.*)$/.match	\
-#			outline.split(/(-+[[:alnum:]]+)/ )
-#		end
-		#LOG.debug outline		
-		@delimiter, @parameter = outline[2..3] #if outline.size > 2
+	def initialize outline, description=""
+		#/(?<name>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
+		@name, @delimiter, @parameter = /(-+[[:alnum:]]+)([ =]?)(.*)$/.match( outline )[1..3]
 		@description = description
-		super outline[1]
-	end
+end
 	def width; (@name+@description).length; end
 	def draw x=nil, y=nil, area
 		#@name[0..9].ljust(10).draw \
@@ -57,6 +50,7 @@ class Option < Item
 end
 class Section < Item
 	def initialize name, content
+		
 		@content = content
 		super name
 	end
@@ -66,37 +60,50 @@ class Section < Item
 	end
 end
 class Entry < Item
+	attr_reader :path
+	
 	def initialize path, name=path.split("/")[-1]
 		@path = path
 		super name;	end
-	def primary
+	#def primary
 		#system TERM + " xdg-open %s" % @path; 
-	end
+	#end
+	#def eql? (object)
+	#	path == object.path || !path
+	#end
 end
 
 class Executable < Entry
-	attr_reader :name
-	#attr_accessor :history
+	attr_accessor :history
+	def initialize path
+		@history = []
+		super path
+	end
 	def primary area=nil
 		if area.is_a? Line			
-			$history[name.to_sym] ||= []
-			$history[name.to_sym] << area.content #@input.dup 
+			@history << Command.new( area.content.dup )
 			system "%s %s &" % [TERM, area.content.join(" ")]
 		else
 			COMMAND.content = [self]  #@name 
 			man = ManPage.new(@name)
-			if man.page
-				sections = man.page.map{ |section ,content| 
-						Section.new section, content }
-					#Section.new s,c.gsub( /^[[:blank:]]+/,"") }
-				[ ($history[name.to_sym] || []) + sections,
-			 		man.options.map{ | outline, description |
-						Option.new outline, description } ]
-			else
-				[ `#{name} --help` ]
-			end
+			[ @history + man.page.map{ |section ,content| 
+					Section.new section, content },
+			  man.options.map{ | outline, description |	
+					Option.new( outline.split(",").last, description) }
+			]
+			#	[ `#{name} --help` ]
 		end
 	end 
+end
+class Command < Item
+	def initialize content
+		@content = content
+		super @content[1..-1].join
+	end
+
+	def primary
+		COMMAND.content = @content
+	end
 end
 class Directory < Entry
 	def primary #restore=nil
@@ -139,7 +146,6 @@ class Container < Item
 				result[index] ||= []
 				result[index] += value }
 		end
-		STACK << self
 		result
 	end
 end

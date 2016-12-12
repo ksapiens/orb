@@ -8,12 +8,12 @@ require "helpers.rb"
 class Area
 	def index; $workspace.index self; end
 	#def primary; @content.primary; end
-	#def update; end
+	def update; end
 	#def [] (index); @content[index]; end
 end
 class Pager < Area 
 	def initialize args 	
-		@start = 0		
+		@start,@content = 0,[]		
 		super args
 			#LOG.debug total.size 
 	end
@@ -40,7 +40,7 @@ class Pager < Area
 			yield
 			("^" * width).draw highlight: focus?, color: :text, 
 				y: 0, area: self if pageup?
-			("V" * width).draw highlight: focus?, color: :text, 
+			("v" * width).draw highlight: focus?, color: :text, 
 				y: height-1, area: self if pagedown?
 		end
 	end
@@ -60,13 +60,14 @@ end
 class List < Pager 
 	def initialize args 
 		super args 
-		#LOG.debug self#height
 		#update #unless $workspace||[]).last == self ? 
 	end
 	def << (object) 
-		$workspace = $workspace[0..index]
-		@content.unshift object
-		@content.uniq!
+		#LOG.debug object
+		$workspace = $workspace[0..index] if index
+		@content.unshift(object).flatten!
+		@content.uniq! {|item| item.name }
+		@file.write @content.to_yaml if @file
 		update
 	end
 	def update #x=nil, y=nil 
@@ -90,16 +91,16 @@ class List < Pager
 		x -= left; y -= top
 		return if super x,y 
 		target = view[ y ]
+		$stack << target unless 
+			[Option, Section].include? target.class
 		return unless results = target.primary
-		STACK << target unless [Option, Section].index target.class
 		for result in results
-			next if result.empty?#LOG.debug result			
-			
+		  
+			$workspace.last.update
 			$workspace << (( result.is_a?(String) ? 
-				TextArea : List).new content: result )
+				TextArea : List).new content: result ) unless result.empty?		
+					
 		end
-		
-		#$focus = -1
 	end
 end
 
@@ -129,7 +130,7 @@ end
 class Line < Area #Pager
 	attr_accessor :content
 	def initialize args
-		@height = 1 unless @height
+		@height ||= 1 
 		super args
 	end
 	def << (item)
@@ -138,7 +139,7 @@ class Line < Area #Pager
 	end
 	def draw	
 		super do
-			@prefix.draw area:self if @prefix
+			@prefix.draw color: :text, area:self if @prefix
 			for entry in @content #total
 				entry.draw self
 				@delimiter.draw	area:self if @delimiter
@@ -147,6 +148,6 @@ class Line < Area #Pager
 	end
 	def primary x=left,y=top
 		x -= left; y -= top
-		@content.first.primary self
+		@content.first.primary self unless @content.empty?
 	end
 end
