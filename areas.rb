@@ -6,7 +6,8 @@
 require "helpers.rb"
 
 class Area
-	def index; $workspace.index self; end
+	attr_accessor :content
+		def index; $workspace.index self; end
 	#def primary; @content.primary; end
 	def update; end
 	#def [] (index); @content[index]; end
@@ -92,7 +93,7 @@ class List < Pager
 		return if super x,y 
 		target = view[ y ]
 		$stack << target unless 
-			[Option, Section].include? target.class
+			[Option, Section, Add].include? target.class
 		return unless results = target.primary
 		for result in results
 		  
@@ -128,7 +129,7 @@ class TextArea < Pager
 end
 
 class Line < Area #Pager
-	attr_accessor :content
+
 	def initialize args
 		@height ||= 1 
 		super args

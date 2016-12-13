@@ -4,8 +4,6 @@
 #
 # copyright 2016 kilian reitmayr
 
-require "shellwords"
-
 class Item 
 	attr_reader :name#, :delimiter, :parameter, :description
 	def to_s; @name; end
@@ -50,7 +48,6 @@ end
 end
 class Section < Item
 	def initialize name, content
-		
 		@content = content
 		super name
 	end
@@ -61,7 +58,6 @@ class Section < Item
 end
 class Entry < Item
 	attr_reader :path
-	
 	def initialize path, name=path.split("/")[-1]
 		@path = path
 		super name;	end
@@ -84,14 +80,17 @@ class Executable < Entry
 			@history << Command.new( area.content.dup )
 			system "%s %s &" % [TERM, area.content.join(" ")]
 		else
+			
 			COMMAND.content = [self]  #@name 
 			man = ManPage.new(@name)
-			[ @history + man.page.map{ |section ,content| 
-					Section.new section, content },
-			  man.options.map{ | outline, description |	
-					Option.new( outline.split(",").last, description) }
-			]
-			#	[ `#{name} --help` ]
+			if man.page
+				[ @history + man.page.map{ |section ,content| 
+						Section.new section, content },
+			  	man.options.map{ | outline, description |	
+						Option.new( outline.split(",").last, description) }
+				]
+			else
+				[ `COLUMNS=1000 #{name} --help` ]; end
 		end
 	end 
 end
@@ -109,22 +108,14 @@ class Directory < Entry
 	def primary #restore=nil
 		files,directories = [],[] #@entries = { right: [], down: [] }
 		`file -i #{@path}/*`.each_line do |line|
-			next if line[/cannot open/] || line[/no read permission/]
-			types = /:\s*([\w-]+)\/([\w-]+)/.match(line)[1..2]
-    	type = ( (%w{ directory text symlink socket chardevice fifo  } & types) + ["entry"] ).first
-    	path = line[/^.*:/][0..-2]
-    	if type != "directory" && FileTest.executable?(path)
-  			type = "executable";end
-      klass = eval type.capitalize
-      entry = klass.new Shellwords.escape path
+			entry = line.entry
     	#LOG.debug entry
-    	if type == "directory"
-    		directories << entry
+    	if entry.is_a? Directory
+    		directories << entry 
     	else
     		files << entry
     	end
     end
-    #LOG.debug files
 		[directories, files]
 	end
 end
@@ -159,4 +150,24 @@ class Host < Item
 		super name
 	end
 end
-
+class Type < Item
+	def initialize klass, name=klass.to_s.downcase
+		@klass = klass
+		super name
+	end
+	def primary
+		[ [ Add.new(@klass) ] + 
+			$stack.content.select{|item| item.is_a? @klass } ]
+	end
+end
+class Add < Item
+	def initialize klass, name="add "+klass.to_s.downcase
+		@klass = klass
+		super name
+	end
+	def primary
+		Item.new(@klass.to_s + " : ").draw COMMAND
+		$stack << @klass.new(COMMAND.getstr)
+		[]
+	end
+end

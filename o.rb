@@ -30,7 +30,9 @@ DEFAULT = [
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
 		Directory.new path }, "commands" ),
-	Executable.new("/usr/bin/find") 
+	Type.new(Host, "web"),
+	Type.new(Directory),
+	Type.new(Executable) 
 ]
 	
 
@@ -44,8 +46,8 @@ HEAD = Line.new content:[ User.new, Item.new("@"), Host.new,
 COMMAND = Line.new content: [], prefix: "> ", delimiter: " ",
 	x: LEFT, y: lines - BOTTOM
 $workspace = [ HEAD, COMMAND ]
+HELP = TextArea.new	content: "help.txt".read, width:cols-LIMIT 
 
-#HELP = TextArea.new	content: "help.txt".read#, width:10 
 #$workspace << HELP
 
 $history = { commands: {}, directory: {}, web: {} }
@@ -70,35 +72,45 @@ class ORB
 		else
 			"~/.orb/stack".touch
 			$stack = List.new x: LEFT, file: "~/.orb/stack"
-			$stack << parse			
+			$stack << parse( "zsh" )
 			$stack << DEFAULT
 		end
 		$workspace << $stack
+
 	end
 	def help
 		$stack << DEFAULT
 		$workspace << HELP
 	end
 	def parse shell="bash" 
-	  log = (ENV["HOME"]+"/."+shell+"_history").read
+	  log = ("~/."+shell+"_history").read
 	  result = []
+	  if shell == "zsh"
+			log = log.force_encoding("Windows-1254").gsub 
+				/^:\s\d*:\d;/, ''
+		end	  
+	  for file in log.scan /(?:[\s=])\/\S*/
+			#entry = `file -i #{file}`.entry
+			entry = file.item
+			result << entry if entry
+		end
+		for domain in log.scan /\w+\.(?:gg|de|com|org|net)/
+			result << Host.new( domain )
+		end
+		for ip in log.scan /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/
+			result << Host.new( ip )
+		end
 		for lines in log.lines
 			for line in lines.split "|"
-			  parts = line.split(/(-{1,2}[^-]*)/)#[1..-1]
-			  LOG.debug parts				
+				parts = line.split(/(-{1,2}[^-]*)/)#[1..-1]				
 				path = `#{shell} -c "which #{parts[0].split[0]} 2> /dev/null"`
-				#LOG.debug path #command
 				next if path.empty?#if path[/: no /] || path[/not found/]
-				#command = command[/aliased to (.*)$/]
 				result << command = Executable.new(path)				 
-				#for option in parts
-					#$history[:commands][name] << 
-				#	options << Option.new( option )
-				#end
+				#command = command[/aliased to (.*)$/]
 				command.history << Command.new( [command] + 
 					parts[1..-1].reject(&:empty?).map{|part| Option.new part} )
 			end
-		end
+		end if false
 		result
 	end
   def colortest

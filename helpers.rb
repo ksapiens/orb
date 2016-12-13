@@ -5,6 +5,8 @@
 #
 # copyright 2016 kilian reitmayr
 require 'fileutils'
+require 'shellwords'
+
 
 module Generic
 	def parse args, local = false
@@ -27,7 +29,19 @@ class String
 	def read; file.read; end
 	def write content; f=file("w");f.write content;f.close; end
 	def copy target; FileUtils.copy path, target.path; end
-	def path; gsub "~", ENV["HOME"]; end
+	def path; gsub "~", ENV["HOME"]; end	
+	def item; Item.new self;end
+	def entry
+		#return if self[/cannot open/] || self[/no read permission/]
+		#return unless 
+		if types = /:\s*([\w-]+)\/([\w-]+)/.match(self)
+    	type=((%w{directory text symlink socket chardevice fifo} & 
+    		types[1..2]) + ["entry"] ).first
+			path = self[/^.*:/][0..-2]    
+    	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
+    	(eval type.capitalize).new Shellwords.escape path
+    end
+  end
 end
 
 class Fixnum
