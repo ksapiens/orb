@@ -6,15 +6,16 @@
 
 class Item #< String
 	#attr_reader :full#, :delimiter, :parameter, :description
-	attr_reader :name, :type #, :delimiter, :parameter, :description
-	def to_s; @name; end
+	attr_reader :letters, :type, :area #, :delimiter, :parameter, :description
+	def to_s; @letters; end
 	#def inspect; to_s; end
 	def draw area
-		LOG.debug self
-		@name[0..area.width-1].draw	color: color, 
-			area: area, selection: area.is_a?( List	)
+		#LOG.debug self.to_s
+		@type.draw color:color, area: area
+		@letters[0..area.width-2].draw color:color, 
+			area:area, selection: true#area.is_a?( List	)
 	end
-	def width; @name.length; end
+	def width; @letters.length+1; end
 	def color 
 		classname = self.class
 		until COLORS.include? classname.to_s.downcase.to_sym do
@@ -22,39 +23,40 @@ class Item #< String
 		end
 		classname.to_s.downcase.to_sym
 	end
-	def initialize name=""; 
+	def initialize letters=""; 
 		@type = " "
-		@name = name;	end
+		@letters = letters
+	end
 	def primary; end
 end
 #class Special < Item; end
 class Option < Item
+	def width; (@letters+@description).length; end
 	def initialize outline, description=""
-		#/(?<name>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
-		@name, @delimiter, @parameter = /(-+[[:alnum:]]+)([ =]?)(.*)$/.match( outline )[1..3]
+		#/(?<letters>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
+		@letters, @delimiter, @parameter = /(-+[[:alnum:]]+)([ =]?)(.*)$/.match( outline )[1..3]
 		@type = "-"
 		@description = description
-end
-	def width; (@name+@description).length; end
+	end
 	def draw x=nil, y=nil, area
-		#@name[0..9].ljust(10).draw \
-		@name.draw color:color, area:area, selection: true
+		#@letters[0..9].ljust(10).draw \
+		@letters.draw color:color, area:area, selection: true
 		" ".draw area:area
-		@description[0..area.width-@name.length-2].draw color: :description, area:area if area.is_a? List
+		@description[0..area.width-@letters.length-2].draw color: :description, area:area if area.width > LIMIT #area.is_a? List
 	end
 	def primary
 		#if COMMAND.input.include? self
 		#	COMMAND.input -= [self]
 		#else
-			COMMAND << self 
+		COMMAND.add self 
 		#end
-		[]
+		#[]
 	end	
 end
 class Section < Item
-	def initialize name, content
+	def initialize letters, content
 		@content = content
-		super name
+		super letters
 	end
 	def primary #restore
 		$workspace.pop
@@ -62,11 +64,14 @@ class Section < Item
 	end
 end
 class Entry < Item
-	attr_reader :path, :type
-	def initialize path, name=path.split("/")[-1]
+	attr_reader :path, :type, :shape
+	def initialize path, letters=path.split("/")[-1]
+		super letters
 		@type = "/"
+		#@shape = /(?:[\s=])\/\S*/
 		@path = path
-		super name;	end
+
+	end
 	#def primary
 		#system TERM + " xdg-open %s" % @path; 
 	#end
@@ -82,13 +87,13 @@ class Executable < Entry
 		super path
 	end
 	def primary area=nil
-		if area.is_a? Line			
+		if area == COMMAND			
 			@history << Command.new( area.content.dup )
 			system "%s %s &" % [TERM, area.content.join(" ")]
 		else
 			
-			COMMAND.content = [self]  #@name 
-			man = ManPage.new(@name)
+			COMMAND.content = [self]  #@letters 
+			man = ManPage.new(@letters)
 			if man.page
 				[ @history + man.page.map{ |section ,content| 
 						Section.new section, content },
@@ -96,15 +101,16 @@ class Executable < Entry
 						Option.new( outline.split(",").last, description) }
 				]
 			else
-				[ `COLUMNS=1000 #{name} --help` ]; end
+				[ `COLUMNS=1000 #{letters} --help` ]
+			end
 		end
 	end 
 end
 class Command < Item
 	def initialize content
-		@type = ">"
 		@content = content
 		super @content[1..-1].join
+		@type = ">"
 	end
 
 	def primary
@@ -130,11 +136,11 @@ class Symlink < Entry; end
 class Fifo < Entry; end
 class Socket < Entry; end
 class Chardevice < Entry; end
-class TextFile < Entry; end
+class Textfile < Entry; end
 
 class Container < Item
-	def initialize items, name
-		super name
+	def initialize items, letters
+		super letters
 		@items = items
 	end
 	def primary
@@ -148,22 +154,24 @@ class Container < Item
 	end
 end
 class User < Item
-	def initialize name=ENV["USER"]
+	def initialize letters=ENV["USER"]
+		super letters
 		@type = "@"
-		super name
 	end
 end
 class Host < Item
-	def initialize name="localhost"
+	def initialize letters="localhost"
+		super letters
 		@type = ":"
-		super name
+		@shape = //
+		#if /\w+\.(?:gg|de|com|org|net)/.match letter
 	end
 end
 class Type < Item
-	def initialize klass, name=klass.to_s.downcase
+	def initialize klass, letters=klass.to_s.downcase
+		super letters
 		@type = "?"
 		@klass = klass
-		super name
 	end
 	def primary
 		[ [ Add.new(@klass) ] + 
@@ -171,10 +179,10 @@ class Type < Item
 	end
 end
 class Add < Item
-	def initialize klass, name="add "+klass.to_s.downcase
+	def initialize klass, letters=klass.to_s.downcase
+		super letters
 		@type = "+"
 		@klass = klass
-		super name
 	end
 	def primary
 		Item.new(@klass.to_s + " : ").draw COMMAND
@@ -186,10 +194,10 @@ end
 
 #class Text < Item
 class Word < Item
-	def initialize name
-		@type = " "
-		super name
-	end
+#	def initialize letters
+#		@type = " "
+#		super letters
+#	end
 end
 
 

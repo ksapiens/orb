@@ -14,8 +14,8 @@ KEY_ESC = 27
 KEY_TAB = 9
 KEY_RETURN = 13
 
-class Area < Window 
-	include Generic
+class Window 
+
 	attr_accessor :focus
 	alias :left :begx
 	alias :width :maxx
@@ -24,14 +24,7 @@ class Area < Window
 	#alias :"<<" :addstr
 	def right; left + width - 1; end
 	def bottom; top + height - 1; end
-
-	def initialize args 
-		parse args 
-		x = @x||($workspace.last.right + MARGIN + 1)
-		#LOG.debug $workspace[-1] if $workspace
-		super @height||lines-TOP-BOTTOM-1, @width||(cols-x), 
-			@y||TOP, x
-	end
+	
 	def draw #&block
 		clear
 		yield
@@ -69,7 +62,7 @@ class String
 			area.addstr self
 		end
 		area.toggle if args[:highlight]
-		#LOG.debug " %s,%s,%s " % COLORS[color]
+		#LOG.debug " %s,%s,%s " % COLORS[args[:color]]
 	end
 end
 

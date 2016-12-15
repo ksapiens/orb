@@ -39,6 +39,7 @@ class String
     		types[1..2]) + ["entry"] ).first
 			path = self[/^.*:/][0..-2]    
     	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
+    	type = "textfile" if type == "text" 
     	(eval type.capitalize).new Shellwords.escape path
     end
   end

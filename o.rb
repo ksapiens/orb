@@ -17,12 +17,12 @@ require "manual.rb"
 require "entities.rb"
 require "areas.rb"
 
+eval "config.default".read
+
 NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
-#$DEBUG = true
-eval "config.default".read
+$DEBUG = true
 init if __FILE__ == $0
-
 
 DEFAULT = [
 	Directory.new( "/", "root" ),
@@ -34,28 +34,27 @@ DEFAULT = [
 	Type.new(Directory),
 	Type.new(Executable) 
 ]
-	
-
 #MENU = List.new ({ content: 
 #	Psych.load( "menu.default".read ),
 #	x: LEFT, y: TOP, limit:LIMIT  
 #	})
-
-HEAD = Line.new content:[User.new, Word.new("@"), Host.new, 
+HEAD = Writer.new content:[ Host.new, User.new,#, 
 	Directory.new(ENV["PWD"],ENV["PWD"]) ],
 	x: LEFT, y: 0
 #LOG.debug ENV["PWD"]
-COMMAND = Line.new content:[], prefix: "> ", delimiter: " ",
+COMMAND = Writer.new content:[], prefix: "> ",#, delimiter: " ",
 	x: LEFT, y: lines - BOTTOM
 $workspace = [ HEAD, COMMAND ]
-HELP = TextArea.new	content: "help.txt".read, width:cols-LIMIT 
+#$workspace = [ COMMAND ]
+HELP = Writer.new	text: "help.txt".read, width:cols - LIMIT 
 
 #$workspace << HELP
 
-$history = { commands: {}, directory: {}, web: {} }
+#$history = { commands: {}, directory: {}, web: {} }
 $filter=""
 $selection = []
 $focus = 2
+#$stack = 
 
 # main class
 class ORB 
@@ -69,16 +68,18 @@ class ORB
 			"./config.default".copy "~/.orb/config"
 		end	
 		if "~/.orb/stack".exists?			
-			$stack = List.new x: LEFT, file: "~/.orb/stack", 
-				content: Psych.load_file( "~/.orb/stack".path )
+			$stack = Writer.new x: LEFT, file: "~/.orb/stack", 
+				content: Psych.load_file( "~/.orb/stack".path ),
+				delimiter:$/
 		else
 			"~/.orb/stack".touch
-			$stack = List.new content:[], x: LEFT, file: "~/.orb/stack"
-			$stack << parse( "zsh" )
-			$stack << DEFAULT
+			$stack = Writer.new content:[], x: LEFT, 
+				file: "~/.orb/stack", delimiter:$/
+			$stack << parse#( "zsh" )
+			
 		end
+		$stack << DEFAULT
 		$workspace << $stack
-
 	end
 	def help
 		$stack << DEFAULT
@@ -90,16 +91,19 @@ class ORB
 	  if shell == "zsh"
 			log = log.force_encoding("Windows-1254").gsub /^:\s\d*:\d;/, ''
 		end	  
-	  for file in log.scan /(?:[\s=])\/\S*/
+		shapes = %r[(\w+\.(?:gg|de|com))]
+			#|(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})
+			
+		for entry in log.scan( shapes ).flatten.compact
 			#entry = `file -i #{file}`.entry
-			entry = file.item
-			result << entry if entry
-		end
-		for domain in log.scan /\w+\.(?:gg|de|com|org|net)/
-			result << Host.new( domain )
-		end
-		for ip in log.scan /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/
-			result << Host.new( ip )
+		#	entry = file.item
+			result << Host.new( entry) #if entry
+		#end
+		#for domain in log.scan /\w+\.(?:gg|de|com|org|net)/
+		#	result << Host.new( domain )
+		#end
+		#for ip in log.scan /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/
+		#	result << Host.new( ip )
 		end
 		for lines in log.lines
 			for line in lines.split "|"
@@ -128,11 +132,13 @@ class ORB
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
 				#LOG.debug "x: %s y: %s" % [area, y]
+				
 				area.primary x, y 
+				
 				break
 			end
 		end
-		cycle NEXT
+		#cycle NEXT
 	end
 	def cycle direction
 		return if $workspace.select(&:paging?).empty? #each_with_index.map{|area,index| 
@@ -147,7 +153,9 @@ class ORB
 		loop do
 			clear
 			refresh
+			
 			$workspace.each( &:draw )
+    	
     	input = getch #Event.poll 
 			LOG.debug input
     	case input
