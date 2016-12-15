@@ -67,7 +67,7 @@ class List < Pager
 		#LOG.debug object
 		$workspace = $workspace[0..index] if index
 		@content.unshift(object).flatten!
-		@content.uniq! {|item| item.name }
+		@content.uniq! {|item| item }
 		@file.write @content.to_yaml if @file
 		update
 	end

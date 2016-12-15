@@ -41,9 +41,11 @@ DEFAULT = [
 #	x: LEFT, y: TOP, limit:LIMIT  
 #	})
 
-HEAD = Line.new content:[ User.new, Item.new("@"), Host.new, 
-	Directory.new(ENV["PWD"],ENV["PWD"]) ],	x: LEFT, y: 0
-COMMAND = Line.new content: [], prefix: "> ", delimiter: " ",
+HEAD = Line.new content:[User.new, Word.new("@"), Host.new, 
+	Directory.new(ENV["PWD"],ENV["PWD"]) ],
+	x: LEFT, y: 0
+#LOG.debug ENV["PWD"]
+COMMAND = Line.new content:[], prefix: "> ", delimiter: " ",
 	x: LEFT, y: lines - BOTTOM
 $workspace = [ HEAD, COMMAND ]
 HELP = TextArea.new	content: "help.txt".read, width:cols-LIMIT 
@@ -71,7 +73,7 @@ class ORB
 				content: Psych.load_file( "~/.orb/stack".path )
 		else
 			"~/.orb/stack".touch
-			$stack = List.new x: LEFT, file: "~/.orb/stack"
+			$stack = List.new content:[], x: LEFT, file: "~/.orb/stack"
 			$stack << parse( "zsh" )
 			$stack << DEFAULT
 		end
@@ -86,8 +88,7 @@ class ORB
 	  log = ("~/."+shell+"_history").read
 	  result = []
 	  if shell == "zsh"
-			log = log.force_encoding("Windows-1254").gsub 
-				/^:\s\d*:\d;/, ''
+			log = log.force_encoding("Windows-1254").gsub /^:\s\d*:\d;/, ''
 		end	  
 	  for file in log.scan /(?:[\s=])\/\S*/
 			#entry = `file -i #{file}`.entry

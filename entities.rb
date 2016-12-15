@@ -4,15 +4,17 @@
 #
 # copyright 2016 kilian reitmayr
 
-class Item 
-	attr_reader :name#, :delimiter, :parameter, :description
+class Item #< String
+	#attr_reader :full#, :delimiter, :parameter, :description
+	attr_reader :name, :type #, :delimiter, :parameter, :description
 	def to_s; @name; end
 	#def inspect; to_s; end
 	def draw area
-		to_s[0..area.width-1].draw	color: color, 
+		LOG.debug self
+		@name[0..area.width-1].draw	color: color, 
 			area: area, selection: area.is_a?( List	)
 	end
-	def width; to_s.length; end
+	def width; @name.length; end
 	def color 
 		classname = self.class
 		until COLORS.include? classname.to_s.downcase.to_sym do
@@ -20,7 +22,9 @@ class Item
 		end
 		classname.to_s.downcase.to_sym
 	end
-	def initialize name=""; @name = name;	end
+	def initialize name=""; 
+		@type = " "
+		@name = name;	end
 	def primary; end
 end
 #class Special < Item; end
@@ -28,6 +32,7 @@ class Option < Item
 	def initialize outline, description=""
 		#/(?<name>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
 		@name, @delimiter, @parameter = /(-+[[:alnum:]]+)([ =]?)(.*)$/.match( outline )[1..3]
+		@type = "-"
 		@description = description
 end
 	def width; (@name+@description).length; end
@@ -57,8 +62,9 @@ class Section < Item
 	end
 end
 class Entry < Item
-	attr_reader :path
+	attr_reader :path, :type
 	def initialize path, name=path.split("/")[-1]
+		@type = "/"
 		@path = path
 		super name;	end
 	#def primary
@@ -96,6 +102,7 @@ class Executable < Entry
 end
 class Command < Item
 	def initialize content
+		@type = ">"
 		@content = content
 		super @content[1..-1].join
 	end
@@ -123,7 +130,7 @@ class Symlink < Entry; end
 class Fifo < Entry; end
 class Socket < Entry; end
 class Chardevice < Entry; end
-class Text < Entry; end
+class TextFile < Entry; end
 
 class Container < Item
 	def initialize items, name
@@ -142,16 +149,19 @@ class Container < Item
 end
 class User < Item
 	def initialize name=ENV["USER"]
+		@type = "@"
 		super name
 	end
 end
 class Host < Item
 	def initialize name="localhost"
+		@type = ":"
 		super name
 	end
 end
 class Type < Item
 	def initialize klass, name=klass.to_s.downcase
+		@type = "?"
 		@klass = klass
 		super name
 	end
@@ -162,12 +172,25 @@ class Type < Item
 end
 class Add < Item
 	def initialize klass, name="add "+klass.to_s.downcase
+		@type = "+"
 		@klass = klass
 		super name
 	end
 	def primary
 		Item.new(@klass.to_s + " : ").draw COMMAND
-		$stack << @klass.new(COMMAND.getstr)
+		#$stack << @klass.new(COMMAND.getstr)
 		[]
 	end
 end
+
+
+#class Text < Item
+class Word < Item
+	def initialize name
+		@type = " "
+		super name
+	end
+end
+
+
+	
