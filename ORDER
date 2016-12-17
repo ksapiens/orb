@@ -1,16 +1,68 @@
-history
-persistence
-coloring - Color.shade [-10..10]
-recursion
-	find
-	**/**
-mime types
-aliases
+FIX: 
+	colors
+	text parsing
+	csv persistence
+	horizontal scroll 
 
-video background
+config <- 
+	/etc / 
+	.files )
+	/sys <- system setting 
+
+*executable <-  live process signaling
+									modules <- switch loaded kernel modules
+	
+memory <- 
+alias <- .bash/zsh_history parse
+history <- recent / frequent 
+
+aliases
+#video background
 opengl interface
-	jpeg generation, cairo, pango
+manual font jpeg generation, #cairo, pango
+rmagick 	
 xlib, window manager
+
+text area: in: file content / command output / host output	
+	
+	generic highlighting
+	semantic deflation
+	orb way editing language + code
+	line skip, increase with quantitiy one page overview
+
+#item/string : 
+ticker thread in o.rb
+
+Executable, live?
+
+naming
+	/files
+	:port host
+	@people
+	-options
+	>command
+
+color
+	red yellow green blue
+	verb object prepositions adjectives
+	method object operators values
+	
+	
+	 words
+	 code
+	 functions
+	 	add
+	 	section
+
+coloring - Color.shade [-10..10]
+	red executable, sources, modules
+	orange directory
+	yellow audio video
+	green host, ip, socket, symlink,
+	cyan 
+	blue options, config
+	violet
+	magenta
 
 name: unix X
 	Z
@@ -53,11 +105,7 @@ tag mixing in list
 menu: 
 	default order: default+recent+frequent / char
 
-	*executable <-  live process signaling
-									modules <- switch loaded kernel modules
-									command builder
-										man browser
-										option parser
+	
 										
 types <- all mime types	
 	binary utf-8, hex browser
@@ -67,20 +115,13 @@ types <- all mime types
 	audio
 	video
 	
-config <- 
-	/etc / 
-	.files )
-	/sys <- system setting 
-
-memory <- 
-alias <- .bash/zsh_history parse
-history <- recent / frequent 
 
 network <- port scan - run default app
 
 							http 
 								url
 								text
+								links
 								image
 								video
 								code
@@ -93,10 +134,6 @@ network <- port scan - run default app
 									image												
 									video
 									exe
-							
-										
-									 
-								
 							ssh <- run orb
 							socks <- connect
 							name - register

@@ -29,4 +29,4 @@ COLORS = {	#			R			G			B
 	text: 			[ 500, 500, 500 ],						
 	section:		[ 500, 500, 500 ],
 	description:[ 400, 400, 400 ],
-	highlight: 	[ 200, 200, 200 ] }
+	dark: 			[ 300, 300, 300 ] }

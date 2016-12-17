@@ -17,11 +17,17 @@ require "manual.rb"
 require "entities.rb"
 require "areas.rb"
 
-eval "config.default".read
+#eval "config.default".read
 
 NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
-$DEBUG = true
+#$DEBUG = true
+"~/.orb".mkdir unless "~/.orb/".exists?
+if "~/.orb/config".exists?
+	eval "~/.orb/config".read
+else
+	"./config.default".copy "~/.orb/config"
+end	
 init if __FILE__ == $0
 
 DEFAULT = [
@@ -30,23 +36,24 @@ DEFAULT = [
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
 		Directory.new path }, "commands" ),
+	Type.new(User),
 	Type.new(Host, "web"),
-	Type.new(Directory),
-	Type.new(Executable) 
+	Type.new(Command, "history"),
+	#Type.new(Executable) 
 ]
 #MENU = List.new ({ content: 
 #	Psych.load( "menu.default".read ),
 #	x: LEFT, y: TOP, limit:LIMIT  
 #	})
 HEAD = Writer.new content:[ Host.new, User.new,#, 
-	Directory.new(ENV["PWD"],ENV["PWD"]) ],
-	x: LEFT, y: 0
+	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
+	x: LEFT, y: 0, height:1, delimiter:''#, width:cols
 #LOG.debug ENV["PWD"]
 COMMAND = Writer.new content:[], prefix: "> ",#, delimiter: " ",
-	x: LEFT, y: lines - BOTTOM
+	x: LEFT, y: lines-1, height:1, delimiter:' '
 $workspace = [ HEAD, COMMAND ]
 #$workspace = [ COMMAND ]
-HELP = Writer.new	text: "help.txt".read, width:cols - LIMIT 
+#HELP = Writer.new	text: "help.txt".read, width:cols - LIMIT 
 
 #$workspace << HELP
 
@@ -58,22 +65,14 @@ $focus = 2
 
 # main class
 class ORB 
-	
 	def initialize
-		"~/.orb".mkdir unless "~/.orb/".exists?
-		if "~/.orb/config".exists?
-			eval "~/.orb/config".read
-		else
-			#"~/.orb/config".touch
-			"./config.default".copy "~/.orb/config"
-		end	
 		if "~/.orb/stack".exists?			
 			$stack = Writer.new x: LEFT, file: "~/.orb/stack", 
 				content: Psych.load_file( "~/.orb/stack".path ),
-				delimiter:$/
+				delimiter:$/, selection:true
 		else
 			"~/.orb/stack".touch
-			$stack = Writer.new content:[], x: LEFT, 
+			$stack = Writer.new content:[], x: LEFT, selection:true, 
 				file: "~/.orb/stack", delimiter:$/
 			$stack << parse#( "zsh" )
 			
@@ -129,12 +128,11 @@ class ORB
 	def primary x, y
 		#LOG.debug $workspace.size #input #$filter
 		for area in $workspace
+		#LOG.debug "o.rb primary  :#{area.height}"
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
 				#LOG.debug "x: %s y: %s" % [area, y]
-				
 				area.primary x, y 
-				
 				break
 			end
 		end
@@ -153,14 +151,14 @@ class ORB
 		loop do
 			clear
 			refresh
-			
-			$workspace.each( &:draw )
-    	
+			#"TEST".draw area:Curses
+			$workspace.each( &:write )
     	input = getch #Event.poll 
-			LOG.debug input
+			#LOG.debug input
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
+    			
     			primary mouse.x, mouse.y
 				when KEY_ESC || KEY_EXIT
         	exit
@@ -179,6 +177,7 @@ class ORB
 				when KEY_LEFT
 					cycle PREVIOUS
 				when KEY_TAB					
+					#LOG.debug "o.rb run 2:#{$workspace[2].top}"
 					primary *$selection.first
 					$filter.clear
 				when KEY_RETURN #KEY_ENTER || 

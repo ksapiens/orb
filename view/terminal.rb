@@ -7,7 +7,7 @@
 
 $LOAD_PATH << "#{File.dirname __FILE__}/.."
 require 'curses'
-require "helpers.rb"
+#require "helpers.rb"
 include Curses
 
 KEY_ESC = 27
@@ -24,13 +24,7 @@ class Window
 	#alias :"<<" :addstr
 	def right; left + width - 1; end
 	def bottom; top + height - 1; end
-	
-	def draw #&block
-		clear
-		yield
-		box '|', '-' if $DEBUG
-		refresh
-	end
+
 	def toggle
 		if @highlight = !@highlight
 			attron( A_STANDOUT )
@@ -38,30 +32,30 @@ class Window
 			attroff( A_STANDOUT )
 		end
 	end
-	def paging?; end
-	def page d; end
-end
+	#def paging?; end
+	#def page d; end
 
-class String
-	def draw args
-		area = args[:area]
-		id = COLORS.keys.index(args[:color]||:default)
-		area.attron color_pair(id)  
-		area.setpos args[:y]||0 ,args[:x]||0 if args[:x] || args[:y]
-		area.toggle if args[:highlight]
-		index = self.downcase.index $filter \
+	def draw string, args={} #letters #draw args
+		#parse args
+		#area = args[:area]
+		#id = COLORS.keys.index( 
+		attron color_pair COLORS.keys.index(string.color||:text) 
+		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
+		toggle if args[:highlight]
+		index = string.downcase.index $filter \
 			unless $filter.empty? || !args[:selection]
 		if index
-			$selection << [ area.curx+area.left, area.top+area.cury ]
-			area.addstr self[0..index-1] if index > 0
-			area.toggle
-			area.addstr self[index,$filter.length]
-			area.toggle
-			area.addstr self[index+$filter.length..-1]
+			$selection << [ curx+left, top+cury ]
+			#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
+			addstr string[0..index-1] if index > 0
+			toggle
+			addstr string[index,$filter.length]
+			toggle
+			addstr string[index+$filter.length..-1]
 		else
-			area.addstr self
+			addstr string #.color 1
 		end
-		area.toggle if args[:highlight]
+		toggle if args[:highlight]
 		#LOG.debug " %s,%s,%s " % COLORS[args[:color]]
 	end
 end

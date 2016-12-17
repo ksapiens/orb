@@ -7,7 +7,6 @@
 require 'fileutils'
 require 'shellwords'
 
-
 module Generic
 	def parse args, local = false
 		for key, value in args
@@ -17,14 +16,24 @@ module Generic
 	end
 		
 end
+
 class String
+	attr_accessor :color
+#	def initialize string, color
+#		super string
+#		@color = color
+#	end
+	
 	{ FileUtils: %w[ cd mkdir touch ],
 		FileTest: %w[ exists? directory? executable? ] 
 	}.each{ |klass, methods| 
 		for method in methods
-			eval("def %s; %s.%s path; end" % [method,klass,method])
-		end
-	}	
+			eval "def #{method}; #{klass}.#{method} path; end"
+		end }	
+	
+	def colored color;s=dup;s.color=color;s; end
+ 	#"\e[#{30+n}m#{self}\e[0m"
+ 	
 	def file mode="r"; open path, mode; end
 	def read; file.read; end
 	def write content; f=file("w");f.write content;f.close; end
@@ -32,13 +41,16 @@ class String
 	def path; gsub "~", ENV["HOME"]; end	
 	def item; Item.new self;end
 	def entry
-		#return if self[/cannot open/] || self[/no read permission/]
-		#return unless 
+		return if self[/cannot open/] || self[/no read permission/] || self.empty?
+		#LOG.debug self
+		
 		if types = /:\s*([\w-]+)\/([\w-]+)/.match(self)
     	type=((%w{directory text symlink socket chardevice fifo} & 
     		types[1..2]) + ["entry"] ).first
+			
 			path = self[/^.*:/][0..-2]    
     	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
+    	#type = "config" 
     	type = "textfile" if type == "text" 
     	(eval type.capitalize).new Shellwords.escape path
     end
@@ -67,3 +79,4 @@ class Hash
 #		self[args.first.to_sym] || super
 #	end
 end
+
