@@ -14,7 +14,7 @@ KEY_ESC = 27
 KEY_TAB = 9
 KEY_RETURN = 13
 
-class Window 
+class Pad#Window 
 
 	attr_accessor :focus
 	alias :left :begx
@@ -24,39 +24,48 @@ class Window
 	#alias :"<<" :addstr
 	def right; left + width - 1; end
 	def bottom; top + height - 1; end
-
-	def toggle
-		if @highlight = !@highlight
-			attron( A_STANDOUT )
-		else
-			attroff( A_STANDOUT )
-		end
+	
+	def mode id
+		attron( id )
+		yield
+		attroff( id )
 	end
-	#def paging?; end
-	#def page d; end
 
-	def draw string, args={} #letters #draw args
-		#parse args
-		#area = args[:area]
-		#id = COLORS.keys.index( 
+	#def toggle
+	#	if @highlight = !@highlight
+	#		attron( A_STANDOUT )
+	#	else
+	#		attroff( A_STANDOUT )
+	#	end
+	#end
+	def draw string, args={} 
 		attron color_pair COLORS.keys.index(string.color||:text) 
 		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
-		toggle if args[:highlight]
-		index = string.downcase.index $filter \
-			unless $filter.empty? || !args[:selection]
-		if index
-			$selection << [ curx+left, top+cury ]
-			#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
-			addstr string[0..index-1] if index > 0
-			toggle
-			addstr string[index,$filter.length]
-			toggle
-			addstr string[index+$filter.length..-1]
-		else
-			addstr string #.color 1
+		mode args[:highlight] ? A_STANDOUT : A_NORMAL do				
+				#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
+			match = /(#{$filter})/i.match(string) unless $filter.empty? || !args[:selection]
+			if match	
+	#			LOG.debug "term: %s,%s f: %s" % [curx,cury,$filter]
+				$selection << [ curx+left, top+cury ]
+				addstr match.pre_match
+				#for part in match.to_a[1..-1] 
+					#if part == $filter m = 
+					mode $counter==$choice ?  A_STANDOUT : A_BOLD do 
+						addstr match.to_s
+					end
+					#toggle
+				#end	
+				$counter+=1
+				LOG.debug "counter :#{$counter}"
+				addstr match.post_match
+				#toggle
+				
+			else
+				addstr string #.color 1
+			end
 		end
-		toggle if args[:highlight]
-		#LOG.debug " %s,%s,%s " % COLORS[args[:color]]
+		#toggle if args[:highlight]
+		#[curx, cury]
 	end
 end
 

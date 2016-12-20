@@ -30,41 +30,34 @@ else
 end	
 init if __FILE__ == $0
 
+$world = []
+$filter=""
+$selection = []
+$focus = 2
+$choice = 0
+$counter = 0
+
 DEFAULT = [
 	Directory.new( "/", "root" ),
 	Directory.new( ENV["HOME"], "home" ),
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
 		Directory.new path }, "commands" ),
-	Type.new(User),
+	Type.new(User, "people"),
 	Type.new(Host, "web"),
-	Type.new(Command, "history"),
-	#Type.new(Executable) 
+	Type.new(Command, "history")
+
 ]
-#MENU = List.new ({ content: 
-#	Psych.load( "menu.default".read ),
-#	x: LEFT, y: TOP, limit:LIMIT  
-#	})
-HEAD = Writer.new content:[ Host.new, User.new,#, 
+
+$world << (HEAD = Writer.new content:[ Host.new, User.new,
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
-	x: LEFT, y: 0, height:1, delimiter:''#, width:cols
+	x: LEFT, y: 0, height:1, delimiter:'', selection:false)#, width:cols
 #LOG.debug ENV["PWD"]
-COMMAND = Writer.new content:[], prefix: "> ",#, delimiter: " ",
-	x: LEFT, y: lines-1, height:1, delimiter:' '
-$workspace = [ HEAD, COMMAND ]
-#$workspace = [ COMMAND ]
-#HELP = Writer.new	text: "help.txt".read, width:cols - LIMIT 
-
-#$workspace << HELP
-
-#$history = { commands: {}, directory: {}, web: {} }
-$filter=""
-$selection = []
-$focus = 2
-#$stack = 
+$world << (COMMAND = Writer.new content:[], prefix: "> ",
+	x: LEFT, y: lines-1, height:1, delimiter:' ', selection:false)
 
 # main class
-class ORB 
+class ORB #< Window
 	def initialize
 		if "~/.orb/stack".exists?			
 			$stack = Writer.new x: LEFT, file: "~/.orb/stack", 
@@ -72,51 +65,53 @@ class ORB
 				delimiter:$/, selection:true
 		else
 			"~/.orb/stack".touch
-			$stack = Writer.new content:[], x: LEFT, selection:true, 
-				file: "~/.orb/stack", delimiter:$/
-			$stack << parse#( "zsh" )
-			
+			#$stack = Writer.new content:[], x: LEFT, selection:true, 
+			#	file: "~/.orb/stack", delimiter:$/
+			#for shell in %w[ bash zsh ]
+			log = "#LOG\n"
+			#log += ("~/.zsh_history").read.force_encoding(
+			#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
+			#	"~/.zsh_history".exists?
+			log += ("~/.bash_history").read if 
+				"~/.bash_history".exists?
+			#end  #parse#( "zsh" )	
+			$stack = Writer.new( input:log,# log:true,
+				summary:true, x: LEFT, selection:true,
+				file: "~/.orb/stack", delimiter:$/ )
+						
 		end
-		$stack << DEFAULT
-		$workspace << $stack
+#		$stack << DEFAULT
+		$world << $stack
+		#$help=Writer.new input: "help.txt".read
+		#$world << $help
+		#super 0,0,0,0
 	end
 	def help
 		$stack << DEFAULT
-		$workspace << HELP
+		$world << $help
 	end
-	def parse shell="bash" 
-	  log = ("~/."+shell+"_history").read
-	  result = []
-	  if shell == "zsh"
-			log = log.force_encoding("Windows-1254").gsub /^:\s\d*:\d;/, ''
-		end	  
-		shapes = %r[(\w+\.(?:gg|de|com))]
+#	def parse shell="bash" 
+#	  log = 
+#	  result = []
+#	  if shell == "zsh"
+#			log = log.force_encoding("Windows-1254").gsub /^:\s\d*:\d;/, ''
+#		end	  
+#		shapes = %r[(\w+\.(?:gg|de|com))]
 			#|(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})
 			
-		for entry in log.scan( shapes ).flatten.compact
+#		for entry in log.scan( shapes ).flatten.compact
 			#entry = `file -i #{file}`.entry
 		#	entry = file.item
-			result << Host.new( entry) #if entry
+#			result << Host.new( entry) #if entry
 		#end
 		#for domain in log.scan /\w+\.(?:gg|de|com|org|net)/
 		#	result << Host.new( domain )
 		#end
 		#for ip in log.scan /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/
 		#	result << Host.new( ip )
-		end
-		for lines in log.lines
-			for line in lines.split "|"
-				parts = line.split(/(-{1,2}[^-]*)/)#[1..-1]				
-				path = `#{shell} -c "which #{parts[0].split[0]} 2> /dev/null"`
-				next if path.empty?#if path[/: no /] || path[/not found/]
-				result << command = Executable.new(path)				 
-				#command = command[/aliased to (.*)$/]
-				command.history << Command.new( [command] + 
-					parts[1..-1].reject(&:empty?).map{|part| Option.new part} )
-			end
-		end if false
-		result
-	end
+#		end
+#		result
+#	end
   def colortest
 		clear
 		COLORS.each_with_index do |color,i|
@@ -126,8 +121,8 @@ class ORB
 		getch 
 	end
 	def primary x, y
-		#LOG.debug $workspace.size #input #$filter
-		for area in $workspace
+		#LOG.debug $world.size #input #$filter
+		for area in $world
 		#LOG.debug "o.rb primary  :#{area.height}"
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
@@ -138,27 +133,24 @@ class ORB
 		end
 		#cycle NEXT
 	end
-	def cycle direction
-		return if $workspace.select(&:paging?).empty? #each_with_index.map{|area,index| 
-		#	i if area.paging? && index != $focus }.compact[$focus+direction]
-		#LOG.debug $focus
-		$focus += direction
-		$focus = 0 if $focus > $workspace.size-1
-		$focus = $workspace.size-1 if $focus < 0
-		cycle direction unless $workspace[$focus].paging?
-	end
 	def run
 		loop do
-			clear
-			refresh
+			#clear
+			#refresh
 			#"TEST".draw area:Curses
-			$workspace.each( &:write )
+			$world.each( &:update )
+			$world[$focus].work
+    	#p = Pad.new 100,10
+    	#20.times do |i|; p.addstr i.to_s+$/; end
+    	#p.refresh 0,0,2,2,10,10
+    	
     	input = getch #Event.poll 
+			$counter = 0
+			
 			#LOG.debug input
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
-    			
     			primary mouse.x, mouse.y
 				when KEY_ESC || KEY_EXIT
         	exit
@@ -169,23 +161,31 @@ class ORB
 				when KEY_BACKSPACE
 					$filter.chop!
 				when KEY_NPAGE
-					$workspace[$focus].page NEXT
+					$world[$focus].page NEXT
 				when KEY_PPAGE
-					$workspace[$focus].page PREVIOUS
+					$world[$focus].page PREVIOUS
+				when KEY_UP
+					$choice=$choice.cycle NEXT, 0, $selection.size-1 
+					$selection.clear
+				when KEY_DOWN
+					$choice=$choice.cycle PREVIOUS, 0, $selection.size-1 
+					$selection.clear
 				when KEY_RIGHT
-					cycle NEXT					
+					$focus=$focus.cycle NEXT, 2, $world.size-1					
 				when KEY_LEFT
-					cycle PREVIOUS
-				when KEY_TAB					
-					#LOG.debug "o.rb run 2:#{$workspace[2].top}"
-					primary *$selection.first
+					$focus=$focus.cycle PREVIOUS, 2, $world.size-1									when KEY_TAB					
+					primary *$selection[$choice]#.first
 					$filter.clear
+					$focus.cycle NEXT, 2, $world.size-1		
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.primary
         when String
+        	$counter,$choice = 0,0
 					$filter = "" if $selection.empty?        	
-        	$selection.clear
+        	
+        	#	$filter.chop
         	$filter += input
+        	$selection.clear
     	end
     end
   end

@@ -8,7 +8,7 @@
 class ManPage
 	attr_reader :options, :page
 	def initialize cmd, width=1000 #ENV["COLUMNS"]
-		txt = `COLUMNS=#{width} man --nj --nh #{cmd}`
+		txt = `COLUMNS=#{width} man --nj --nh #{cmd} 2> /dev/null`
 		#LOG.debug txt
 		return if txt.empty? #start_with? "No"
 		@page = Hash[*txt.gsub(/^ {7}/,"").split( 

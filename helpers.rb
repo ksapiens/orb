@@ -41,27 +41,45 @@ class String
 	def path; gsub "~", ENV["HOME"]; end	
 	def item; Item.new self;end
 	def entry
-		return if self[/cannot open/] || self[/no read permission/] || self.empty?
+		return if self[/cannot open/] || 
+			self[/no read permission/] || self.empty?
 		#LOG.debug self
-		
 		if types = /:\s*([\w-]+)\/([\w-]+)/.match(self)
     	type=((%w{directory text symlink socket chardevice fifo} & 
     		types[1..2]) + ["entry"] ).first
-			
 			path = self[/^.*:/][0..-2]    
     	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
     	#type = "config" 
-    	type = "textfile" if type == "text" 
+    	type += "file" if type == "text" 
     	(eval type.capitalize).new Shellwords.escape path
     end
   end
 end
 
+#class String
+#	def [] args
+#		super[args].colored @color
+#	end
+#end
+		
 class Fixnum
-#	def limit min, max
-#		return min if self < min
-#		return max if self > max; 
-#		self end; 
+#	def limit 
+
+	def cycle direction, min, max
+		#return if $world.select(&:paging?).empty? #each_with_index.map{|area,index| 
+		#if area.paging? && index != self }.compact[self+direction]
+		
+		copy = self + direction
+		LOG.debug copy
+		copy = min if copy > max
+		copy = max if copy < min
+		copy
+		#cycle direction unless $world[copy].paging?
+	end
+	
+#		return min if copy < min
+#		return max if copy > max; 
+#		copy end; 
 	def min i
 		return i if self < i if i
 		self; end

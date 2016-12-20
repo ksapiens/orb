@@ -8,13 +8,20 @@
     O.rb 0.5
 
 		/ files
-		  operators
+		? of type
+		@ people
+		: hosts
+		- options
+		+ adding
+		> command
+    # tag
 		
-		F12 colors 
-		ESC exit
+    F1	help
+    F12 colors 
+    ESC exit
 				      
     keyboard: type in your choice, when highlighted, 
-    					press TAB to select.
+	   					press TAB to select.
     mouse : move your pointer over your choice, 
     				click left for default action,
     				right for action list

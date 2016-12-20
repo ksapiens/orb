@@ -1,6 +1,10 @@
-FIX: 
-	colors
-	text parsing
+
+command history
+log parsing
+line remover overview mode
+web http parsing
+
+
 	csv persistence
 	horizontal scroll 
 
@@ -11,6 +15,10 @@ config <-
 
 *executable <-  live process signaling
 									modules <- switch loaded kernel modules
+
+Writer:
+create new stack from parsing of input 
+
 	
 memory <- 
 alias <- .bash/zsh_history parse
