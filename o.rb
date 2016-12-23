@@ -80,7 +80,8 @@ class ORB #< Window
 				"~/.bash_history".exists?
 			#end  #parse#( "zsh" )	
 			$stack = Writer.new( input:log,# log:true,
-				summary:true, x: LEFT, selection:true,
+				#summary:true, 
+				x: LEFT, selection:true,
 				file: "~/.orb/stack", delimiter:$/ )
 						
 		end
@@ -128,7 +129,7 @@ class ORB #< Window
 	def primary x, y
 		#LOG.debug $world.size #input #$filter
 		for area in $world
-			LOG.debug "o.rb primary  :#{x}, #{y}"
+			#LOG.debug "o.rb primary  :#{x}, #{y}"
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
 				#LOG.debug "x: %s y: %s" % [area, y]
@@ -141,25 +142,26 @@ class ORB #< Window
 	def run
 		loop do
 #			clear
+			#LOG.debug $focus#input
 #			refresh
 			#"TEST".draw area:Curses
 			#colortest
-			#$world.each( &:work )
-			$world[$focus].work
-			$world.each( &:update )
+			$world.each( &:work )
+			#$world[$focus].work
+			#$world.each( &:update )
     	#p = Pad.new 10,10#,10,10
     	#p.clear
     	#p.setpos 0,0
     	#20.times do |i|; p.addstr " "+i.to_s+$/; end
     	#p.box '.','.'
     	#p.refresh 0,0,5,2,8,15
-			#refresh
+#			refresh
  			$counter = 0
     	input = getch #Event.poll 
 #	end
 #	def test
 #	loop do
-			LOG.debug $focus#input
+			
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -176,10 +178,10 @@ class ORB #< Window
 					$world[$focus].page NEXT
 				when KEY_PPAGE
 					$world[$focus].page PREVIOUS
-				when KEY_UP
+				when KEY_DOWN
 					$choice=$choice.cycle NEXT, 0, $selection.size-1 
 					$selection.clear
-				when KEY_DOWN
+				when KEY_UP
 					$choice=$choice.cycle PREVIOUS, 0, $selection.size-1 
 					$selection.clear
 				when KEY_RIGHT
@@ -192,6 +194,7 @@ class ORB #< Window
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.primary
         when String
+        	$world[$focus].page = 0
         	$counter,$choice = 0,0
 					$filter = "" if $selection.empty?        	
         	#	$filter.chop

@@ -121,32 +121,37 @@ class Option < Item
 end
 class Command < Item
 	attr_accessor :sequence
-	def initialize sequence
-		case sequence
-			when String #@input
-				parts = sequence.strip.split(/\s(-{1,2}[^-]*)/)
+	def initialize input
+		case input
+			when String 
+				parts = input.strip.split(/\s(-{1,2}[^-]*)/)
 				return if parts.empty?
-				#LOG.debug "#{parts[0]}   \n\n  "#{parts}"
+				
 				#path = `#{shell} -c "which #{parts[0].split[0]} 2> /dev/null"`
 				path = `which "#{Shellwords.escape parts[0].split[0]}" 2> /dev/null`
 				return if path.empty?
 				@sequence ||= [] 
-				command = Executable.new(path)				 
+				command = Executable.new(path.strip)				 
+				
 				command.history << self
 				@sequence << command 
 				#command = command[/aliased to (.*)$/]
-				@sequence << parts[1..-1].reject(&:empty?).map{|part| 
-					Option.new part} 
+				options = parts[1..-1].reject(&:empty?)
+				LOG.debug "com #{options}"
+				@sequence << options.map{|part| 
+					Option.new part} unless options.empty?
 							
 			when Enumerable
-				@sequence = sequence
+				@sequence = input
 		end
+		
 		@type = ">"					
 		super @sequence.join ""
 		
 	end
 	def image long=false 
-		@sequence.map(&:to_s)		
+
+		[@type] + @sequence.map{|i| i.image[-1] }				
 	end
 	def primary
 		#COMMAND.content = @sequence

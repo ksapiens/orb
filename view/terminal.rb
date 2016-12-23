@@ -16,11 +16,11 @@ KEY_RETURN = 13
 
 class Window 
 
-	attr_accessor :focus, :height
+	attr_accessor :focus #, :height
 	alias :left :begx
 	alias :width :maxx
 	alias :top :begy
-	#alias :height :maxy
+	alias :height :maxy
 	
 	#alias :"<<" :addstr
 	
