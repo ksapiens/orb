@@ -63,20 +63,15 @@ end
 #end
 		
 class Fixnum
-#	def limit 
-
 	def cycle direction, min, max
 		#return if $world.select(&:paging?).empty? #each_with_index.map{|area,index| 
 		#if area.paging? && index != self }.compact[self+direction]
-		
 		copy = self + direction
-		LOG.debug copy
 		copy = min if copy > max
 		copy = max if copy < min
 		copy
 		#cycle direction unless $world[copy].paging?
 	end
-	
 #		return min if copy < min
 #		return max if copy > max; 
 #		copy end; 

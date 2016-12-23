@@ -14,14 +14,16 @@ KEY_ESC = 27
 KEY_TAB = 9
 KEY_RETURN = 13
 
-class Pad#Window 
+class Window 
 
-	attr_accessor :focus
+	attr_accessor :focus, :height
 	alias :left :begx
 	alias :width :maxx
 	alias :top :begy
-	alias :height :maxy
+	#alias :height :maxy
+	
 	#alias :"<<" :addstr
+	
 	def right; left + width - 1; end
 	def bottom; top + height - 1; end
 	
@@ -72,10 +74,10 @@ end
 def init
 	init_screen
 	start_color
-	nonl
+	#nonl
 	#cbreak
 	#noraw
-	#noecho
+	noecho
   curs_set 0
   mousemask(ALL_MOUSE_EVENTS)
 	stdscr.keypad(true)
@@ -84,6 +86,7 @@ def init
 		#init_color i+20, *color[1].map{ |value| value+=100 }
 		#init_color i+40, *color[1].map{ |value| value-=100 }
 		init_pair i, i, COLOR_BLACK
+  refresh
   end
 end	
 #mousemask(BUTTON1_CLICKED|BUTTON2_CLICKED|BUTTON3_CLICKED|BUTTON4_CLICKED)

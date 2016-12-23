@@ -30,6 +30,7 @@ else
 end	
 init if __FILE__ == $0
 
+
 $world = []
 $filter=""
 $selection = []
@@ -52,23 +53,26 @@ DEFAULT = [
 $world << (HEAD = Writer.new content:[ Host.new, User.new,
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
 	x: LEFT, y: 0, height:1, delimiter:'', selection:false)#, width:cols
+#getch
 #LOG.debug ENV["PWD"]
-$world << (COMMAND = Writer.new content:[], prefix: "> ",
-	x: LEFT, y: lines-1, height:1, delimiter:' ', selection:false)
-
+$world << (COMMAND = Writer.new content:[], 
+	prefix: "> ",	x: LEFT, y: lines-1, height:1,
+	delimiter:' ', selection:false)
+#getch
 # main class
 class ORB #< Window
 	def initialize
 		if "~/.orb/stack".exists?			
 			$stack = Writer.new x: LEFT, file: "~/.orb/stack", 
 				content: Psych.load_file( "~/.orb/stack".path ),
+			  #height:10,y:TOP,
 				delimiter:$/, selection:true
 		else
 			"~/.orb/stack".touch
 			#$stack = Writer.new content:[], x: LEFT, selection:true, 
 			#	file: "~/.orb/stack", delimiter:$/
 			#for shell in %w[ bash zsh ]
-			log = "#LOG\n"
+			log = "__LOG\n"
 			#log += ("~/.zsh_history").read.force_encoding(
 			#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 			#	"~/.zsh_history".exists?
@@ -80,7 +84,7 @@ class ORB #< Window
 				file: "~/.orb/stack", delimiter:$/ )
 						
 		end
-#		$stack << DEFAULT
+		$stack << DEFAULT
 		$world << $stack
 		#$help=Writer.new input: "help.txt".read
 		#$world << $help
@@ -115,15 +119,16 @@ class ORB #< Window
   def colortest
 		clear
 		COLORS.each_with_index do |color,i|
-			"#{color[0]} - #{color_content i}".draw \
-				color: color[0], x: 5, y: i, area: Curses
+			setpos i,LEFT
+			attron color_pair i
+			addstr "#{color[0]} - #{color_content i}"
 		end
 		getch 
 	end
 	def primary x, y
 		#LOG.debug $world.size #input #$filter
 		for area in $world
-		#LOG.debug "o.rb primary  :#{area.height}"
+			LOG.debug "o.rb primary  :#{x}, #{y}"
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
 				#LOG.debug "x: %s y: %s" % [area, y]
@@ -135,19 +140,26 @@ class ORB #< Window
 	end
 	def run
 		loop do
-			#clear
-			#refresh
+#			clear
+#			refresh
 			#"TEST".draw area:Curses
-			$world.each( &:update )
+			#colortest
+			#$world.each( &:work )
 			$world[$focus].work
-    	#p = Pad.new 100,10
-    	#20.times do |i|; p.addstr i.to_s+$/; end
-    	#p.refresh 0,0,2,2,10,10
-    	
+			$world.each( &:update )
+    	#p = Pad.new 10,10#,10,10
+    	#p.clear
+    	#p.setpos 0,0
+    	#20.times do |i|; p.addstr " "+i.to_s+$/; end
+    	#p.box '.','.'
+    	#p.refresh 0,0,5,2,8,15
+			#refresh
+ 			$counter = 0
     	input = getch #Event.poll 
-			$counter = 0
-			
-			#LOG.debug input
+#	end
+#	def test
+#	loop do
+			LOG.debug $focus#input
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -182,7 +194,6 @@ class ORB #< Window
         when String
         	$counter,$choice = 0,0
 					$filter = "" if $selection.empty?        	
-        	
         	#	$filter.chop
         	$filter += input
         	$selection.clear
