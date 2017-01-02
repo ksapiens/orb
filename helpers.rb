@@ -45,7 +45,7 @@ class String
 			self[/no read permission/] || self.empty?
 		#LOG.debug self
 		if types = /:\s*([\w-]+)\/([\w-]+)/.match(self)
-    	type=((%w{directory text symlink socket chardevice fifo} & 
+    	type=((%w{directory text audio video image symlink socket chardevice fifo} & 
     		types[1..2]) + ["entry"] ).first
 			path = self[/^.*:/][0..-2]    
     	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?

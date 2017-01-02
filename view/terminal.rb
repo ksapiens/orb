@@ -12,7 +12,7 @@ include Curses
 
 KEY_ESC = 27
 KEY_TAB = 9
-KEY_RETURN = 13
+KEY_RETURN = 10
 
 class Window 
 
@@ -43,22 +43,24 @@ class Window
 	def draw string, args={} 
 		attron color_pair COLORS.keys.index(string.color||:text) 
 		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
-		mode args[:highlight] ? A_STANDOUT : A_NORMAL do				
-				#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
-			match = /(#{$filter})/i.match(string) unless $filter.empty? || !args[:selection]
+		#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
+		match = /(#{$filter})/i.match(string) unless 
+			$filter.empty? or !args[:selection]
+		mode (args[:highlight] or match and $counter==$choice) ? A_STANDOUT : A_NORMAL do				
 			if match	
 	#			LOG.debug "term: %s,%s f: %s" % [curx,cury,$filter]
 				$selection << [ curx+left, top+cury ]
 				addstr match.pre_match
 				#for part in match.to_a[1..-1] 
 					#if part == $filter m = 
-					mode $counter==$choice ?  A_STANDOUT : A_BOLD do 
+					#mode $counter==$choice ?  A_STANDOUT : A_BOLD do 
+					mode $counter==$choice ? A_NORMAL : A_STANDOUT do 
 						addstr match.to_s
 					end
 					#toggle
 				#end	
 				$counter+=1
-				LOG.debug "counter :#{$counter}"
+				#LOG.debug "counter :#{$counter}"
 				addstr match.post_match
 				#toggle
 				

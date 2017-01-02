@@ -6,13 +6,12 @@
 
 class Item #< String
 	attr_reader :letters, :type#
-	attr_accessor :x, :y#, :area 
+	attr_accessor :x, :y, :skip#, :area 
 	def to_s; @letters; end
-	#def inspect; to_s; end
 	def image long=false, type=true 
-		#LOG.debug self
-		[ (@type.colored( :dark ) if type),
-		@letters.colored( color )]
+		if skip; start = @skip; @skip = 0
+		else start = 0;	end 
+		[ @letters[start..-1].colored( color )]
 	end
 	def width; @letters.length + 1; end
 	def color 
@@ -23,6 +22,7 @@ class Item #< String
 	end
 	def initialize letters=''; 
 		@type ||= ' '
+		#@skip ||= 0
 		@letters ||= letters#.colored color
 	end
 	def primary; end
@@ -36,12 +36,19 @@ class Entry < Item
 		@path = path
 		super letters#.gsub /$\//, ''
 	end
+	def primary
+		$stack << self
+	end
 	#def eql? (object)
 	#	path == object.path || !path
 	#end
+	def image short=false#x=nil, y=nil, area
+		super short ? @letters : @path
+	end
 end
 class Directory < Entry
 	def primary #restore=nil
+		super
 		files,directories = [],[] #@entries = { right: [], down: [] }
 		`file -i #{@path}/*`.each_line do |line|
 			#LOG.debug "dir :#{line}"
@@ -51,6 +58,7 @@ class Directory < Entry
     end
 		[directories, files]
 	end
+
 end
 
 class Executable < Entry
@@ -59,19 +67,17 @@ class Executable < Entry
 		@history = []
 		super path
 	end
-	def primary area=nil
-		#if area == COMMAND		
-		#else
-			COMMAND.content = [self]  #@letters 
-			man = ManPage.new(@letters)
-			if man.page
-				[ @history + man.page.map{ |section ,content| 
-						Section.new section, content },
-			  	man.options.map{ | outline, description |	
-						Option.new( outline.split(",").last, description) }
-				]
-			else [ `COLUMNS=1000 #{letters} --help` ];end
-		#end
+	def primary 
+		super
+		COMMAND.content = [self]  #@letters 
+		man = ManPage.new(@letters)
+		if man.page
+			[ @history +
+				man.options.map{ | outline, description |	
+					Option.new( outline.split(",").last, description) } +
+				man.page.map{ |section ,content| 
+					Section.new section, content } ]
+		else [ `COLUMNS=1000 #{letters} --help` ];end
 	end 
 end
 class Symlink < Entry; end
@@ -79,8 +85,11 @@ class Fifo < Entry; end
 class Socket < Entry; end
 class Chardevice < Entry; end
 class Textfile < Entry
-	def primary;[path.read];end
+	def primary;super;[path.read];end
 end	
+class Video < Entry; end
+class Audio < Entry; end
+class Image < Entry; end
 
 class Container < Item
 	def initialize items, letters
@@ -88,6 +97,7 @@ class Container < Item
 		super letters
 	end
 	def primary
+		$stack << self
 		result = [] # { right: [], down: [] }
 		for item in @items
 		  item.primary.each_with_index{ |value,index|
@@ -114,9 +124,8 @@ class Option < Item
 		super +	(long ?  [" " + @description] : [] )
 	end
 	def primary
-		
 		COMMAND.add self 
-		[]
+		nil #[]
 	end	
 end
 class Command < Item
@@ -137,24 +146,25 @@ class Command < Item
 				@sequence << command 
 				#command = command[/aliased to (.*)$/]
 				options = parts[1..-1].reject(&:empty?)
-				LOG.debug "com #{options}"
+				
 				@sequence << options.map{|part| 
 					Option.new part} unless options.empty?
-							
 			when Enumerable
 				@sequence = input
 		end
-		
 		@type = ">"					
 		super @sequence.join ""
 		
 	end
 	def image long=false 
-
-		[@type] + @sequence.map{|i| i.image[-1] }				
+		#[@type] + 
+		@sequence.map{|part| part.image[-1] }				
 	end
 	def primary
-		#COMMAND.content = @sequence
+		COMMAND.content = @sequence
+	end
+	def execute
+		#LOG.debug "com #{self}"
 		@sequence.first.history << self
 		[ `#{@sequence.join ' '}` ]
 	end
@@ -165,6 +175,10 @@ class User < Item
 		super letters
 		@type = "@"
 	end
+	def primary
+		$stack << self
+	end
+
 end
 class Host < Item
 	def initialize letters="localhost"
@@ -173,6 +187,10 @@ class Host < Item
 		@shape = //
 		#if /\w+\.(?:gg|de|com|org|net)/.match letter
 	end
+	def primary
+		$stack << self
+	end
+
 end
 class Type < Item
 	def initialize klass, letters=klass.to_s.downcase
@@ -181,6 +199,7 @@ class Type < Item
 		@klass = klass
 	end
 	def primary
+		$stack << self
 		[ [ Add.new(@klass) ] + 
 			$stack.content.select{|item| item.is_a? @klass } ]
 	end

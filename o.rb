@@ -47,18 +47,15 @@ DEFAULT = [
 	Type.new(User, "people"),
 	Type.new(Host, "web"),
 	Type.new(Command, "history")
-
 ]
 
 $world << (HEAD = Writer.new content:[ Host.new, User.new,
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
-	x: LEFT, y: 0, height:1, delimiter:'', selection:false)#, width:cols
-#getch
-#LOG.debug ENV["PWD"]
-$world << (COMMAND = Writer.new content:[], 
-	prefix: "> ",	x: LEFT, y: lines-1, height:1,
+	x: LEFT, y: 0, height:1, delimiter:'', selection:false)
+$world << (COMMAND = Writer.new content:[],
+	prefix: ">",	x: LEFT, y: lines-1, height:1,
 	delimiter:' ', selection:false)
-#getch
+
 # main class
 class ORB #< Window
 	def initialize
@@ -69,8 +66,6 @@ class ORB #< Window
 				delimiter:$/, selection:true
 		else
 			"~/.orb/stack".touch
-			#$stack = Writer.new content:[], x: LEFT, selection:true, 
-			#	file: "~/.orb/stack", delimiter:$/
 			#for shell in %w[ bash zsh ]
 			log = "__LOG\n"
 			#log += ("~/.zsh_history").read.force_encoding(
@@ -78,12 +73,11 @@ class ORB #< Window
 			#	"~/.zsh_history".exists?
 			log += ("~/.bash_history").read if 
 				"~/.bash_history".exists?
-			#end  #parse#( "zsh" )	
+			#end  
 			$stack = Writer.new( input:log,# log:true,
 				#summary:true, 
 				x: LEFT, selection:true,
 				file: "~/.orb/stack", delimiter:$/ )
-						
 		end
 		$stack << DEFAULT
 		$world << $stack
@@ -95,28 +89,6 @@ class ORB #< Window
 		$stack << DEFAULT
 		$world << $help
 	end
-#	def parse shell="bash" 
-#	  log = 
-#	  result = []
-#	  if shell == "zsh"
-#			log = log.force_encoding("Windows-1254").gsub /^:\s\d*:\d;/, ''
-#		end	  
-#		shapes = %r[(\w+\.(?:gg|de|com))]
-			#|(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})
-			
-#		for entry in log.scan( shapes ).flatten.compact
-			#entry = `file -i #{file}`.entry
-		#	entry = file.item
-#			result << Host.new( entry) #if entry
-		#end
-		#for domain in log.scan /\w+\.(?:gg|de|com|org|net)/
-		#	result << Host.new( domain )
-		#end
-		#for ip in log.scan /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/
-		#	result << Host.new( ip )
-#		end
-#		result
-#	end
   def colortest
 		clear
 		COLORS.each_with_index do |color,i|
@@ -137,31 +109,13 @@ class ORB #< Window
 				break
 			end
 		end
-		#cycle NEXT
 	end
 	def run
 		loop do
-#			clear
-			#LOG.debug $focus#input
-#			refresh
-			#"TEST".draw area:Curses
-			#colortest
 			$world.each( &:work )
-			#$world[$focus].work
-			#$world.each( &:update )
-    	#p = Pad.new 10,10#,10,10
-    	#p.clear
-    	#p.setpos 0,0
-    	#20.times do |i|; p.addstr " "+i.to_s+$/; end
-    	#p.box '.','.'
-    	#p.refresh 0,0,5,2,8,15
-#			refresh
  			$counter = 0
     	input = getch #Event.poll 
-#	end
-#	def test
-#	loop do
-			
+			LOG.debug "input :#{input}"
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -192,6 +146,7 @@ class ORB #< Window
 					$filter.clear
 					$focus.cycle NEXT, 2, $world.size-1		
 				when KEY_RETURN #KEY_ENTER || 
+
 					COMMAND.primary
         when String
         	$world[$focus].page = 0

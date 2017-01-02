@@ -25,18 +25,21 @@ class Writer < Window #Pad #Area
 		@delimiter ||= ""
 		@page ||= 0
 		@pages = [0]
+		
 		#LOG.debug "var %s %s %s %s" % [@y, @x, @height, @width]
 		super @height, @width, @y, @x
 		#LOG.debug @input.class				
-		@input = @input.read if @input.is_a? File
+		#@input = @input.read if @input.is_a? File
 		case @input
 			when String
 				#fork do 
 				@content = understand @input#, @log
+				@text = true
 				#@delimiter = ""
 				#end
 			when Command
 				@content = @input.primary			
+				@text = true
 				#@input.entries.map{|line| Text.new line }
 			when Enumerable
 				@content = @input
@@ -56,18 +59,24 @@ class Writer < Window #Pad #Area
 			end
 		else		
 			begin
+			
 			#match=/(?<Host>\w+\.(?:rb|gg|de|com|org|net))/.match this
-			match=/(?<Host>(\w+:\/\/)?(\w+\.)?(\w+\.(?:gg|de|com|org|net))([w\/\.]+)?)\s/.match this
+			#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
+			shapes = /(?<Host>(\w+:\/\/)?([\w\.]+\.\w{2,3}[^\.\W])(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
+			#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
+			match = shapes.match this
 				if match 
 					LOG.debug match#.post_match
-					result << Text.new( match.pre_match )#word )				
+					text = match.pre_match
 					item = match.to_h.select{|k,v| v}
 					result << eval( item.keys.first + #if item
 						".new '#{item.values.first}'" )
 				else					
-					result << Text.new( this )#word )
-					LOG.debug result#this[0..20]				
+					text = this #word )
+					
 				end
+				result << text.lines.map{ |line| Text.new( line ) }
+				#LOG.debug result#this[0..20]				
 				#for word in rest.split
 				#end
 			end while match && this = match.post_match
@@ -77,7 +86,7 @@ class Writer < Window #Pad #Area
 			#	result << Host.new( match.first )
 			#end
 		end
-		result #@content = result 
+		result.flatten #@content = result 
 	end
 	def index; $world.index self; end
 	def focus?; $focus == index; end
@@ -96,7 +105,7 @@ class Writer < Window #Pad #Area
 	end
 	def add (item);	@content << item; end
 	def << (object) 		
-		LOG.debug "area << :#{object}"
+		#LOG.debug " << :#{object}"
 		$world = $world[0..index] if index
 		@content.unshift(object).flatten!
 		@content.uniq! {|item| item.image.join "" }
@@ -111,48 +120,55 @@ class Writer < Window #Pad #Area
 				$filter) } 
 			#[@start..@start+height-2]
 		else
-			LOG.debug "#{@page} > #{@pages}"
+			#LOG.debug "#{@page} > #{@pages}"
 			return @content[@pages[@page]..-1]
 			#result = @content.select{|item|
 				#item.y.between? @start, @start+height-2 }
 		end		
 	end		
+	def add_page index
+		(@pages << @pages.last + index ) if @page == @pages.size-1; 
+	end
 	def work
 		clear 
-		setpos 0,0
+		#setpos 0,0
 		draw @prefix if @prefix
 		#@pageup = false if view[0] == @content[0]
 		view.each_with_index{ |item,i| #@content #
 			#draw $/ if not list? && curx + item.width > width #&& item.width < width
 			images = item.image list? #self, @selection				
-			@pagedown = item != @content[-1] 
+			@pagedown = item != view.last #@content[-1] 
 			#if images.join.length > 
-			if list? && cury == height-1		
-				
-				@pages << @pages[-1] + i
-				#@pagedown = true
-				break
+			if list? 
+				if cury == height-1		
+					add_page i
+					break
+				end
+			else
+				available=(width - curx) + (height - cury - 1) * width
+				rest = available - images.join.length
+				LOG.debug "#{item}.avail > #{available}"
+				if rest < 0
+					images[0]=images.first[0..rest]
+					item.skip = -1 * rest
+					add_page i - 1
+					
+					LOG.debug "#{item}.rest > #{rest}"
+					break
+				#	item.wrap = rest
+				end	
 			end
-			#available = ((width - curx ) + (cury - height) * width)
-			#rest = available - images.join.length
-			#LOG.debug "over > #{oversize}"
-			#if rest < 0
-			#	image = image[0..rest]
-			#	item.wrap = rest
-			#	@pagedown = true
-			#	break
-			#end
-			
-			draw @delimiter unless curx == 0 
+			draw @delimiter unless curx == 0 or not @delimiter
+			draw item.type.colored :dark unless @text
 			#x,y = curx,cury
 			for image in images
-				image=image[0..width-curx-1].colored(image.color)if list?
-				draw image, selection:(@selection && focus?)				
+				#image=image[0..width-curx-1].colored(image.color)if list?
+				draw image, selection:(@selection and focus?)				
 			end
 			#if curx == width && cury == height
 			item.x,item.y = curx,cury
 			#break if cury == height-1
-			LOG.debug "item > #{item.inspect}"
+			#LOG.debug "item > #{item.inspect}"
 		}
 		if list?
 			draw ("v" * width), y:height-1, highlight:focus? if 
@@ -170,42 +186,46 @@ class Writer < Window #Pad #Area
 	end
 	def primary x=left,y=top
 		x -= left; y -= top		
-		if y==height-1 && pagedown?
+		if self == COMMAND
+		LOG.debug "command :#{@content}"
+			results = Command.new( @content.dup ).execute 
+		elsif y==height-1 && pagedown?
 			page NEXT
+			return
 		elsif y==0 && pageup?
 			page PREVIOUS
+			return
 		else
-		  if self == COMMAND
-				target = Command.new( content.dup )
-			else
-				target = view[y]
-			
-			#previous = false
-			#for item in @content#view
-			#	target = previous if previous && 
-			#		x.between?( previous.x, item.x ) && 
-			#		y.between?( previous.y-@start, item.y-@start )
-			#	previous = item
-			#end
-			
-			#target = @content[-1] unless target
-			end
-			LOG.debug y#target #item				
-			$stack << target unless 
-				[Text, Command, Option, Section, Add].include? target.class
-			return unless results = target.primary
+			results =  view[y].primary
+		end
+		#previous = false
+		#for item in @content#view
+		#	target = previous if previous && 
+		#		x.between?( previous.x, item.x ) && 
+		#		y.between?( previous.y-@start, item.y-@start )
+		#	previous = item
+		#end
+		#target = @content[-1] unless target
+
+		
+			#$stack << target unless 
+			#	[Text, Command, Option, 
+			#		Section, Add].include? target.class
+			return unless results
+			$world=$world[0..2]
 			for result in results
 				unless result.empty?		
+					#LOG.debug "result: #{result}"#target #item				
 					$world.last.trim #unless result.empty?		
 					$world << Writer.new( 
-						x:$world.last.right+MARGIN, 
+						x:$world.last.right+MARGIN+1, 
 						input: result, selection:true
 						#delimiter:(result.is_a? String ? '':$/) 
 						) 
 				$focus=$focus.cycle NEXT, 2, $world.size-1
 				end 
 			end			
-		end
+		
 	end
 end
 #	def update x=nil, y=nil 
