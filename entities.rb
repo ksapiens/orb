@@ -6,12 +6,12 @@
 
 class Item #< String
 	attr_reader :letters, :type#
-	attr_accessor :x, :y, :skip#, :area 
-	def to_s; @letters; end
-	def image list=false#, type=true 
+	attr_accessor :x, :y#, :skip#, :area 
+	#def to_s; @letters; end
+	def image short=true#, type=true 
 		#if skip; start = @skip; @skip = 0
 		#else start = 0;	end 
-		[ @letters[(@skip or 0)..-1].colored( color )]
+		[ @letters.colored( color )]
 	end
 	def width; @letters.length + 1; end
 	def color 
@@ -31,6 +31,8 @@ class Item #< String
 		case id
 			when KEY_TAB, KEY_MOUSE
 				primary
+			when KEY_CTRL_A
+				add
 		end
 	end
 end
@@ -43,15 +45,14 @@ class Entry < Item
 		@path = path
 		super letters#.gsub /$\//, ''
 	end
-	def primary
-		$stack << self
+	def add#primary
+		COMMAND.add self
 	end
 	#def eql? (object)
 	#	path == object.path || !path
 	#end
-	def image short=false#x=nil, y=nil, area
-		[(short ? @letters : @path)[
-			(@skip or 0)..-1].colored( color )]
+	def image path=false#x=nil, y=nil, area
+		[(path ? @path : @letters ).colored( color )]
 	end
 end
 class Directory < Entry
@@ -77,7 +78,8 @@ class Executable < Entry
 	end
 	def primary 
 		super
-		COMMAND.content = [self]  #@letters 
+		COMMAND.content = []
+		COMMAND.add self
 		man = ManPage.new(@letters)
 		if man.page
 			[ @history +
@@ -104,20 +106,18 @@ class Container < Item
 		@items = items
 		super letters
 	end
+	def color; @items.first.color; end
 	def primary
-		$stack << self
 		result = [] # { right: [], down: [] }
 		for item in @items
 		  item.primary.each_with_index{ |value,index|
-		  	
 				result[index] ||= []
 				result[index] += value }
-			$stack.content.shift
+#			$stack.content.shift
 		end
 		result
 	end
 end
-
 #class Special < Item; end
 class Option < Item
 	def width; image.join.length; end
@@ -166,14 +166,16 @@ class Command < Item
 		super @sequence.join ""
 		
 	end
-	def image long=false 
+	def image short=false
 		#[@type] + 
-		@sequence.map{|part| part.image[-1] }				
+		@sequence.map{|part| part.image.first }				
 	end
-	def primary
+	def add
 		COMMAND.content = @sequence
 	end
-	def execute
+
+	def primary#execute
+	
 		#LOG.debug "com #{self}"
 		@sequence.first.history << self
 		[ `#{@sequence.join ' '}` ]
@@ -186,7 +188,7 @@ class User < Item
 		@type = "@"
 	end
 	def primary
-		$stack << self
+		
 	end
 
 end
@@ -198,7 +200,7 @@ class Host < Item
 		#if /\w+\.(?:gg|de|com|org|net)/.match letter
 	end
 	def primary
-		$stack << self
+		
 	end
 
 end
@@ -209,7 +211,7 @@ class Type < Item
 		@klass = klass
 	end
 	def primary
-		$stack << self
+		
 		[ [ Add.new(@klass) ] + 
 			$stack.content.select{|item| item.is_a? @klass } ]
 	end

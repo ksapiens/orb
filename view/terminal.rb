@@ -24,8 +24,8 @@ class Window
 	
 	#alias :"<<" :addstr
 	
-	def right; left + width - 1; end
-	def bottom; top + height - 1; end
+	def right; left + @width - 1; end
+	def bottom; top + @height - 1; end
 	
 	def mode id
 		attron( id )

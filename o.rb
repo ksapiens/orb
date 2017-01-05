@@ -49,9 +49,9 @@ DEFAULT = [
 
 $world << (HEAD = Writer.new content:[ Host.new, User.new,
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
-	x: LEFT, y: 0, height:1, delimiter:'', selection:false)
+	x: LEFT, y: 0, height:0, delimiter:'', selection:false)
 $world << (COMMAND = Writer.new content:[],
-	prefix: ">",	x: LEFT, y: lines-1, height:1,
+	prefix: ">",	x: LEFT, y: lines-1, height:0,
 	delimiter:' ', selection:false)
 
 # main class
@@ -95,14 +95,16 @@ class ORB #< Window
 			addstr "#{color[0]} - #{color_content i}"
 		end
 		getch 
+		clear
+		$world.each( &:work )
 	end
 	def action id, x, y
-		#LOG.debug $world.size #input #$filter
 		for area in $world
-			#LOG.debug "o.rb primary  :#{x}, #{y}"
+
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
-				#LOG.debug "x: %s y: %s" % [area, y]
+				#LOG.debug area.inspect
+				#LOG.debug "x: %s y: %s" % [x, y]
 				area.action id, x, y 
 				break
 			end
@@ -110,12 +112,12 @@ class ORB #< Window
 	end
 	def run
 		loop do
-			$world.each( &:work )
+			$world[$focus].work
  			$counter = 0
+ 			$world.each( &:update )
     	#halt
     	input = getch #Event.poll 
 			#LOG.debug "input :#{input}"
-    	
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -145,9 +147,11 @@ class ORB #< Window
 				when KEY_LEFT
 					$focus=$focus.cycle PREVIOUS, 2, $world.size-1
 				when KEY_TAB, KEY_CTRL_A
+					
 					action input, *$selection[$choice]#.first
-					$filter.clear
-					$focus.cycle NEXT, 2, $world.size-1		
+#					$filter.clear
+										
+					#$focus.cycle NEXT, 2, $world.size-1		
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.action #primary
         when String
