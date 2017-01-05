@@ -1,6 +1,6 @@
 # ORB - Omnipercipient Resource Browser
 # 
-# 	Areas 
+# 	Writer
 #
 # copyright 2016 kilian reitmayr
 require "helpers.rb"
@@ -59,16 +59,15 @@ class Writer < Window #Pad #Area
 			end
 		else		
 			begin
-			
-			#match=/(?<Host>\w+\.(?:rb|gg|de|com|org|net))/.match this
 			#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
-			shapes = /(?<Host>(\w+:\/\/)?([\w\.]+\.\w{2,3}[^\.\W])(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
+			shapes = /(?<Host>(\w+:\/\/)?(([\w\.-]+\.\w{2,3}\W)|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}))([\w\/]+)*\s)|\W(?<Entry>(\/\w+)+)/
 			#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
 			match = shapes.match this
 				if match 
-					LOG.debug match#.post_match
+#					LOG.debug match#.post_match
 					text = match.pre_match
 					item = match.to_h.select{|k,v| v}
+#					LOG.debug item#match#.post_match
 					result << eval( item.keys.first + #if item
 						".new '#{item.values.first}'" )
 				else					
@@ -132,6 +131,7 @@ class Writer < Window #Pad #Area
 	def work
 		clear 
 		#setpos 0,0
+		draw $/ if pageup?
 		draw @prefix if @prefix
 		#@pageup = false if view[0] == @content[0]
 		view.each_with_index{ |item,i| #@content #
@@ -139,26 +139,31 @@ class Writer < Window #Pad #Area
 			images = item.image list? #self, @selection				
 			@pagedown = item != view.last #@content[-1] 
 			#if images.join.length > 
-			if list? 
-				if cury == height-1		
-					add_page i
-					break
-				end
-			else
-				available=(width - curx) + (height - cury - 1) * width
+			#if list? 
+			#	if cury == height-1		
+			#		add_page i
+			#		break
+			#	end
+			#else
+				available=(width - curx) + (height - cury - 2) * width
 				rest = available - images.join.length
-				LOG.debug "#{item}.avail > #{available}"
-				if rest < 0
-					images[0]=images.first[0..rest]
-					item.skip = -1 * rest
-					add_page i - 1
+				#LOG.debug "#{item}.avail > #{available}"
+				#LOG.debug "#{split}.rest > #{rest}"
+				if rest < 0 or (cury == height-1 and curx == 0)
+					#halt
+					#images[0]=images.first[0..rest]
+					#split = item.dup
+					#split.skip = rest
+					#@content.insert i, split
+					add_page i 
 					
-					LOG.debug "#{item}.rest > #{rest}"
+					
 					break
 				#	item.wrap = rest
 				end	
-			end
+			#end
 			draw @delimiter unless curx == 0 or not @delimiter
+			item.x,item.y = curx,cury
 			draw item.type.colored :dark unless @text
 			#x,y = curx,cury
 			for image in images
@@ -166,11 +171,11 @@ class Writer < Window #Pad #Area
 				draw image, selection:(@selection and focus?)				
 			end
 			#if curx == width && cury == height
-			item.x,item.y = curx,cury
+			
 			#break if cury == height-1
 			#LOG.debug "item > #{item.inspect}"
 		}
-		if list?
+		if height > 2 #list?
 			draw ("v" * width), y:height-1, highlight:focus? if 
 				pagedown?
 			draw ("^" * width), y:0, highlight:focus? if 
@@ -184,7 +189,7 @@ class Writer < Window #Pad #Area
 	def trim
 		resize @height, LIMIT #unless self == $world.last
 	end
-	def primary x=left,y=top
+	def action id=KEY_TAB, x=left,y=top
 		x -= left; y -= top		
 		if self == COMMAND
 		LOG.debug "command :#{@content}"
@@ -196,65 +201,40 @@ class Writer < Window #Pad #Area
 			page PREVIOUS
 			return
 		else
-			results =  view[y].primary
+			#results =  view[y].action
+			#halt
+#			LOG.debug "pointer :#{x}, #{y}" 
+			previous = view.first
+			for item in view[1..-1] #@content#
+#				LOG.debug "previous :#{previous.x}, #{previous.y}" 
+				#next unless previous #|| false
+				results = previous.action( id ) if 
+					( y == item.y and	item.y == previous.y and 
+						x.between?(previous.x, item.x-1) ) or
+					(y == previous.y and x >= previous.x ) or
+					(y == item.y and x < item.x ) or 
+					(y > previous.y and y < item.y )
+#				LOG.debug "item :#{item.x}, #{item.y}" 
+				previous = item
+			end unless view.size == 1
+			results = previous.action( id ) unless results
 		end
-		#previous = false
-		#for item in @content#view
-		#	target = previous if previous && 
-		#		x.between?( previous.x, item.x ) && 
-		#		y.between?( previous.y-@start, item.y-@start )
-		#	previous = item
-		#end
+#		LOG.debug "result :#{results}" 
 		#target = @content[-1] unless target
-
-		
-			#$stack << target unless 
-			#	[Text, Command, Option, 
-			#		Section, Add].include? target.class
-			return unless results
-			$world=$world[0..2]
-			for result in results
-				unless result.empty?		
-					#LOG.debug "result: #{result}"#target #item				
-					$world.last.trim #unless result.empty?		
-					$world << Writer.new( 
-						x:$world.last.right+MARGIN+1, 
-						input: result, selection:true
-						#delimiter:(result.is_a? String ? '':$/) 
-						) 
-				$focus=$focus.cycle NEXT, 2, $world.size-1
-				end 
-			end			
+		return unless results
+		$world=$world[0..2]
+		for result in results
+			unless result.empty?		
+#				LOG.debug "result: #{result}"#target #item				
+				$world.last.trim #unless result.empty?		
+				$world << Writer.new( 
+					x:$world.last.right+MARGIN+1, 
+					input: result, selection:true
+					#delimiter:(result.is_a? String ? '':$/) 
+					) 
+			$focus=$focus.cycle NEXT, 2, $world.size-1
+			end 
+		end			
 		
 	end
 end
-#	def update x=nil, y=nil 
-		
-		#@width = 0
-		#LOG.debug "area upd :#{content[-1]}"
-		#for entry in @content #total #view new_height
-		#	if entry.width > @width
-		#		@width = entry.width; end
-		#end
-		
-				
-		#return unless list?
-		#refresh @start,0, @y, @x, @y+@height-1, @x+@width-1
-		#unless oneline?
-		#	LOG.debug "area << :#{@start}"
-		#	@header.clear
-		#	@header.draw ("^" * @width), x:0, y:0, highlight:focus? if 
-		#		pageup?
-		#	@header.refresh
-		#	@footer.clear
-		#	@footer.draw ("v" * @width), x:0, y:0, highlight:focus? if 
-		#		pagedown?
-		#	@footer.draw ("v" * @width), x:0, y:0, 
-		#		highlight:focus? unless paging?	
-		#	@footer.refresh
-		#end
-
-		#refresh @start, 0, @y, @x, @height, @width
-		#refresh y||0, x||0, top, left, bottom, right
-		#LOG.debug "update  :#{top}"
-#	end

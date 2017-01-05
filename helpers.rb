@@ -6,6 +6,17 @@
 # copyright 2016 kilian reitmayr
 require 'fileutils'
 require 'shellwords'
+require 'pry'
+
+def halt
+	close_screen
+	binding.pry 
+end
+
+def cont
+	init_screen
+
+end
 
 module Generic
 	def parse args, local = false

@@ -10,12 +10,11 @@ $LOAD_PATH << "#{File.dirname __FILE__}/."
 require 'logger'
 #require 'yaml'
 require 'psych'
-
 require 'view/terminal'
 require "helpers.rb"
 require "manual.rb"
 require "entities.rb"
-require "areas.rb"
+require "writer.rb"
 
 #eval "config.default".read
 
@@ -29,7 +28,6 @@ else
 	"./config.default".copy "~/.orb/config"
 end	
 init if __FILE__ == $0
-
 
 $world = []
 $filter=""
@@ -98,14 +96,14 @@ class ORB #< Window
 		end
 		getch 
 	end
-	def primary x, y
+	def action id, x, y
 		#LOG.debug $world.size #input #$filter
 		for area in $world
 			#LOG.debug "o.rb primary  :#{x}, #{y}"
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
 				#LOG.debug "x: %s y: %s" % [area, y]
-				area.primary x, y 
+				area.action id, x, y 
 				break
 			end
 		end
@@ -114,18 +112,22 @@ class ORB #< Window
 		loop do
 			$world.each( &:work )
  			$counter = 0
+    	#halt
     	input = getch #Event.poll 
-			LOG.debug "input :#{input}"
+			#LOG.debug "input :#{input}"
+    	
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
-    			primary mouse.x, mouse.y
+    			action input, mouse.x, mouse.y
 				when KEY_ESC || KEY_EXIT
         	exit
 				when KEY_F12
 					colortest
 				when KEY_F1
 					help
+				when KEY_F2
+					halt
 				when KEY_BACKSPACE
 					$filter.chop!
 				when KEY_NPAGE
@@ -141,13 +143,13 @@ class ORB #< Window
 				when KEY_RIGHT
 					$focus=$focus.cycle NEXT, 2, $world.size-1					
 				when KEY_LEFT
-					$focus=$focus.cycle PREVIOUS, 2, $world.size-1									when KEY_TAB					
-					primary *$selection[$choice]#.first
+					$focus=$focus.cycle PREVIOUS, 2, $world.size-1
+				when KEY_TAB, KEY_CTRL_A
+					action input, *$selection[$choice]#.first
 					$filter.clear
 					$focus.cycle NEXT, 2, $world.size-1		
 				when KEY_RETURN #KEY_ENTER || 
-
-					COMMAND.primary
+					COMMAND.action #primary
         when String
         	$world[$focus].page = 0
         	$counter,$choice = 0,0
@@ -163,6 +165,8 @@ begin
 end
 ensure
 #	LOG.debug "ensure"
+	#halt
 	use_default_colors()
+	
   close_screen
 end

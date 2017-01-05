@@ -8,10 +8,10 @@ class Item #< String
 	attr_reader :letters, :type#
 	attr_accessor :x, :y, :skip#, :area 
 	def to_s; @letters; end
-	def image long=false, type=true 
-		if skip; start = @skip; @skip = 0
-		else start = 0;	end 
-		[ @letters[start..-1].colored( color )]
+	def image list=false#, type=true 
+		#if skip; start = @skip; @skip = 0
+		#else start = 0;	end 
+		[ @letters[(@skip or 0)..-1].colored( color )]
 	end
 	def width; @letters.length + 1; end
 	def color 
@@ -26,6 +26,13 @@ class Item #< String
 		@letters ||= letters#.colored color
 	end
 	def primary; end
+	def action id=KEY_TAB
+		LOG.debug "action #{id}"
+		case id
+			when KEY_TAB, KEY_MOUSE
+				primary
+		end
+	end
 end
 
 class Entry < Item
@@ -43,7 +50,8 @@ class Entry < Item
 	#	path == object.path || !path
 	#end
 	def image short=false#x=nil, y=nil, area
-		super short ? @letters : @path
+		[(short ? @letters : @path)[
+			(@skip or 0)..-1].colored( color )]
 	end
 end
 class Directory < Entry
@@ -82,7 +90,7 @@ class Executable < Entry
 end
 class Symlink < Entry; end
 class Fifo < Entry; end
-class Socket < Entry; end
+class Socketfile < Entry; end
 class Chardevice < Entry; end
 class Textfile < Entry
 	def primary;super;[path.read];end
@@ -101,8 +109,10 @@ class Container < Item
 		result = [] # { right: [], down: [] }
 		for item in @items
 		  item.primary.each_with_index{ |value,index|
+		  	
 				result[index] ||= []
 				result[index] += value }
+			$stack.content.shift
 		end
 		result
 	end
