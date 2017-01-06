@@ -22,8 +22,6 @@ class Window
 	alias :top :begy
 	alias :height :maxy
 	
-	#alias :"<<" :addstr
-	
 	def right; left + @width - 1; end
 	def bottom; top + @height - 1; end
 	
@@ -33,15 +31,8 @@ class Window
 		attroff( id )
 	end
 
-	#def toggle
-	#	if @highlight = !@highlight
-	#		attron( A_STANDOUT )
-	#	else
-	#		attroff( A_STANDOUT )
-	#	end
-	#end
 	def draw string, args={} 
-		attron color_pair COLORS.keys.index(string.color||:text) 
+		attron color_pair COLORS.keys.index(string.color||:white) 
 		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
 		#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
 		match = /(#{$filter})/i.match(string) unless 
@@ -51,25 +42,16 @@ class Window
 	#			LOG.debug "term: %s,%s f: %s" % [curx,cury,$filter]
 				$selection << [ curx+left, top+cury ]
 				addstr match.pre_match
-				#for part in match.to_a[1..-1] 
-					#if part == $filter m = 
-					#mode $counter==$choice ?  A_STANDOUT : A_BOLD do 
 					mode $counter==$choice ? A_NORMAL : A_STANDOUT do 
 						addstr match.to_s
 					end
-					#toggle
-				#end	
 				$counter+=1
 				#LOG.debug "counter :#{$counter}"
 				addstr match.post_match
-				#toggle
-				
 			else
-				addstr string #.color 1
+				addstr string
 			end
 		end
-		#toggle if args[:highlight]
-		#[curx, cury]
 	end
 end
 
@@ -84,7 +66,7 @@ def init
   mousemask(ALL_MOUSE_EVENTS)
 	stdscr.keypad(true)
 	COLORS.each_with_index do |color,i|
-		init_color i, *color[1]
+		init_color i, *color[1][0]
 		#init_color i+20, *color[1].map{ |value| value+=100 }
 		#init_color i+40, *color[1].map{ |value| value-=100 }
 		init_pair i, i, COLOR_BLACK

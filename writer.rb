@@ -30,8 +30,9 @@ class Writer < Pad #Window #
 		case @input
 			when String
 				#fork do 
-				@content = understand @input#, @log
 				@text = true
+				@content = understand @input#, @log
+				
 				#@delimiter = ""
 				#end
 			when Command
@@ -42,40 +43,46 @@ class Writer < Pad #Window #
 				@content = @input
 				@delimiter = $/
 		end
+		
 		work
 		refresh 0,0, @y, @x, @y+@height, @x+@width
 	end
 	def understand this#, log=false
 		result = []
 		if this.start_with? "__LOG" #log #@type == :log
+			@text = false
 			for lines in this.lines
 				for line in lines.split "|"
 					command = Command.new( line )
-		#			LOG.debug command
+					LOG.debug command
 					result << command.sequence.first if command.sequence
+					#result << command if command.sequence
 				end
 			end
-		else		
-			begin
-			#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
-			shapes = /(?<Host>(\w+:\/\/)?(([\w\.-]+\.\w{2,3}\W)|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}))([\w\/]+)*\s)|\W(?<Entry>(\/\w+)+)/
-			#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
-			match = shapes.match this
-				if match 
-#					LOG.debug match#.post_match
-					text = match.pre_match
-					item = match.to_h.select{|k,v| v}
-#					LOG.debug item#match#.post_match
-					result << eval( item.keys.first + #if item
-						".new '#{item.values.first}'" )
-				else					
-					text = this #word )
-					
-				end
-				result << text.lines.map{ |line| Text.new( line ) }
-				#LOG.debug result#this[0..20]				
-			end while match && this = match.post_match
 		end
+		
+		begin
+		#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
+		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
+		
+#		shapes = /(?<Host>(\w+:\/\/)?([\w\.-]+\.(?:gg|de|com|org|net))|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})([\w\/]+)*\s)?|\W(?<Entry>(\/\w+)+)/
+		shapes = /\W(?<Entry>(\/[[:alnum:]]+)+)\W/
+		match = shapes.match this
+			if match 
+					LOG.debug match#.post_match
+				text = match.pre_match
+				item = match.to_h.select{|k,v| v}
+#					LOG.debug item#match#.post_match
+				result << eval( item.keys.first + #if item
+					".new '#{item.values.first}'" )
+			else					
+				text = this #word )
+				
+			end
+			result << text.lines.map{ |line| Text.new( line ) } if @text
+			#LOG.debug result#this[0..20]				
+		end while match && this = match.post_match
+		
 		result.flatten #@content = result 
 	end
 	def index; $world.index self; end
@@ -178,9 +185,10 @@ class Writer < Pad #Window #
 			LOG.debug "pointer :#{x}, #{y}" 			
 		else
 			#halt
-			previous = view.first
-			for item in view[1..-1] #@content#
+			
+			for item in view#[1..-1] #@content#
 #				LOG.debug "previous :#{previous.x}, #{previous.y}" 
+				previous ||= item
 				#next unless previous #|| false
 				target = previous if 
 					( y == item.y and	item.y == previous.y and 
@@ -191,7 +199,7 @@ class Writer < Pad #Window #
 #				LOG.debug "item :#{item.x}, #{item.y}" 
 				previous = item
 			end unless view.size == 1
-			results = previous.action( id ) unless results
+			results ||= previous.action( id ) #unless results
 		end
 #		LOG.debug "result :#{results}" 
 		#target = @content[-1] unless target
@@ -209,9 +217,10 @@ class Writer < Pad #Window #
 					input: result, selection:true
 					#delimiter:(result.is_a? String ? '':$/) 
 					) 
-			$focus=$world.size-1#$focus.cycle NEXT, 2, $world.size-1
+			
 			end 
-		end			
+		end
+		$focus=$world.size-1#$focus.cycle NEXT, 2, $world.size-1		
 		$filter.clear
 		work
 	end

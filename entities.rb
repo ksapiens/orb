@@ -5,25 +5,28 @@
 # copyright 2016 kilian reitmayr
 
 class Item #< String
-	attr_reader :letters, :type#
+	attr_reader :alias, :letters, :type, :shape#
 	attr_accessor :x, :y#, :skip#, :area 
 	#def to_s; @letters; end
-	def image short=true#, type=true 
-		#if skip; start = @skip; @skip = 0
-		#else start = 0;	end 
-		[ @letters.colored( color )]
+	
+	def image short=true
+		[ ( @alias ? @alias : @letters).colored( color )]
 	end
-	def width; @letters.length + 1; end
-	def color 
-		name = self.class
-		name = name.superclass until 
-			COLORS.include? name.to_s.downcase.to_sym 
-		name.to_s.downcase.to_sym
-	end
+	def width; image.join.length; end
+	#def width; @letters.length + 1; end
+#	def self.type name; @type = name; end
+#	def self.color name;	@color = name; end
+#	def self.shape name;	@shape = name; end
+	def color name=self.class
+		until color = COLORS.select{|k,v| 
+			v[1..-1].include? name }.keys.first 
+			name = name.superclass 
+		end
+		color
+	end			
 	def initialize letters=''; 
-		@type ||= ' '
-		#@skip ||= 0
-		@letters ||= letters#.colored color
+		@type ||= ""
+		@letters ||= letters
 	end
 	def primary; end
 	def action id=KEY_TAB
@@ -38,10 +41,11 @@ class Item #< String
 end
 
 class Entry < Item
-	attr_reader :path#, :shape
+	attr_reader :path
 	def initialize path, letters=path.split("/")[-1]
+		@color = :orange
 		@type = "/"
-		#@shape = /(?:[\s=])\/\S*/
+		@shape = /\/\w+[\/\w]+/
 		@path = path
 		super letters#.gsub /$\//, ''
 	end
@@ -56,6 +60,11 @@ class Entry < Item
 	end
 end
 class Directory < Entry
+	
+	#def initialize path
+	#	super path
+		#@color = :yellow
+	#end
 	def primary #restore=nil
 		super
 		files,directories = [],[] #@entries = { right: [], down: [] }
@@ -73,8 +82,8 @@ end
 class Executable < Entry
 	attr_accessor :history
 	def initialize path
-		@history = []
 		super path
+		@history = []
 	end
 	def primary 
 		super
@@ -90,23 +99,36 @@ class Executable < Entry
 		else [ `COLUMNS=1000 #{letters} --help` ];end
 	end 
 end
-class Symlink < Entry; end
-class Fifo < Entry; end
-class Socketfile < Entry; end
-class Chardevice < Entry; end
+class Special < Entry
+	def initialize path
+		super path
+		@color = :magenta
+	end
+end
+class Symlink < Special; end
+class Fifo <  Special; end
+class Socketfile < Special; end
+class Chardevice < Special; end
 class Textfile < Entry
+	def initialize path
+		super path
+		@color = :bright
+	end
 	def primary;super;[path.read];end
 end	
-class Video < Entry; end
-class Audio < Entry; end
-class Image < Entry; end
+class Video < Entry; @color = :cyan; end
+class Audio < Entry; @color = :blue; end
+class Image < Entry; @color = :green; end
 
 class Container < Item
+	
 	def initialize items, letters
 		@items = items
+		@color = @items.first.color
+		@type = @items.first.type
 		super letters
 	end
-	def color; @items.first.color; end
+
 	def primary
 		result = [] # { right: [], down: [] }
 		for item in @items
@@ -120,9 +142,8 @@ class Container < Item
 end
 #class Special < Item; end
 class Option < Item
-	def width; image.join.length; end
 	def initialize outline, description=""
-		
+		@type = "-"
 		#/(?<letters>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
 		@letters, @delimiter, @parameter = /-(-?[[:alnum:]]*)([ =]?)(.*)$/.match( outline )[1..3]
 		@type = "-"
@@ -141,41 +162,34 @@ end
 class Command < Item
 	attr_accessor :sequence
 	def initialize input
+		@type = ">"
 		case input
 			when String 
 				parts = input.strip.split(/\s(-{1,2}[^-]*)/)
 				return if parts.empty?
-				
 				#path = `#{shell} -c "which #{parts[0].split[0]} 2> /dev/null"`
 				path = `which "#{Shellwords.escape parts[0].split[0]}" 2> /dev/null`
 				return if path.empty?
 				@sequence ||= [] 
-				command = Executable.new(path.strip)				 
-				
-				command.history << self
-				@sequence << command 
+				executable = Executable.new(path.strip)				 
+				executable.history << self
+				@sequence << executable
 				#command = command[/aliased to (.*)$/]
 				options = parts[1..-1].reject(&:empty?)
-				
 				@sequence << options.map{|part| 
 					Option.new part} unless options.empty?
 			when Enumerable
 				@sequence = input
 		end
-		@type = ">"					
 		super @sequence.join ""
-		
 	end
 	def image short=false
-		#[@type] + 
 		@sequence.map{|part| part.image.first }				
 	end
 	def add
 		COMMAND.content = @sequence
 	end
-
 	def primary#execute
-	
 		#LOG.debug "com #{self}"
 		@sequence.first.history << self
 		[ `#{@sequence.join ' '}` ]
@@ -183,20 +197,18 @@ class Command < Item
 end
 
 class User < Item
+
 	def initialize letters=ENV["USER"]
 		super letters
 		@type = "@"
 	end
-	def primary
-		
-	end
-
+	def primary;	end
 end
 class Host < Item
 	def initialize letters="localhost"
 		super letters
 		@type = ":"
-		@shape = //
+		#@shape = //
 		#if /\w+\.(?:gg|de|com|org|net)/.match letter
 	end
 	def primary
@@ -231,6 +243,7 @@ end
 
 class Section < Item
 	def initialize letters, content
+		@type = " "
 		@content = content
 		super letters
 	end
@@ -240,13 +253,14 @@ class Section < Item
 	end
 end
 class Text < Item
-@type = ''
+#	type = ""
 end
 class Word < Item
-#	def initialize letters
-#		@type = " "
-#		super letters
-#	end
+
+	def initialize letters
+		super letters
+		@type = " "
+	end
 end
 
 

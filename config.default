@@ -9,24 +9,26 @@ BOTTOM = 1
 LIMIT = 12				 	
 TERM = "urxvt -hold -e "
 
-COLORS = {	#			R			G			B
-	default:  	[ 100, 100, 100 ],
-	item: 			[ 700, 700, 700 ],						
-	option: 		[ 300, 300, 700 ],
-	executable: [ 700, 300, 300 ],
-	service: 		[ 300, 700, 300 ],
-	chardevice: [ 300, 700, 700 ],
-	fifo: 			[ 400, 600, 600 ],
-	symlink: 		[ 500, 700, 700 ],
-	module: 		[ 700, 300, 700 ],
-	directory: 	[ 500, 500, 100 ],
-	type:	 			[ 300, 300, 600 ],
-	user: 			[ 300, 300, 500 ],
-	command: 		[ 500, 300, 300 ],
-	host: 			[ 100, 500, 300 ],
-	socket: 		[ 100, 600, 100 ],
-	container:	[ 700, 700, 100 ],
-	text: 			[ 500, 500, 500 ],						
-	section:		[ 500, 500, 500 ],
-	description:[ 400, 400, 400 ],
-	dark: 			[ 300, 300, 300 ] }
+F = 1000
+H = 618
+M = 382
+#ML= 236
+L = 146
+
+COLORS = {	#		R			G			B
+	background:	[[ L,L,L ]],
+
+	red:				[[ H,L,L ],Executable],
+	orange:			[[ H,M,L ],Entry],
+	yellow:			[[ H,H,L ],Directory],
+	green:			[[ L,H,L ],Image,Host],
+	cyan:				[[ L,H,H ],Video,Type],
+	blue:				[[ L,L,H ],Audio,Option,User],
+	magenta:		[[ H,L,H ],Special],
+
+	dark:				[[ M,M,M ],Item],
+#	grey:				[[ M,M,M ]],
+	bright:			[[ H,H,H ],Section,Text,Textfile],
+	white:			[[ F,F,F ],Add]
+}
+

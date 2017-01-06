@@ -22,11 +22,10 @@ NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
 #$DEBUG = true
 "~/.orb".mkdir unless "~/.orb/".exists?
-if "~/.orb/config".exists?
-	eval "~/.orb/config".read
-else
-	"./config.default".copy "~/.orb/config"
-end	
+"./config.default".copy "~/.orb/config" unless 
+	"~/.orb/config".exists?
+eval "~/.orb/config".read
+
 init if __FILE__ == $0
 
 $world = []
@@ -42,9 +41,12 @@ DEFAULT = [
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
 		Directory.new path }, "commands" ),
+	Type.new(Type, "types"),
 	Type.new(User, "people"),
 	Type.new(Host, "web"),
+#	Type.new(Config, "config"),
 	Type.new(Command, "history")
+	
 ]
 
 $world << (HEAD = Writer.new content:[ Host.new, User.new,
@@ -72,8 +74,7 @@ class ORB #< Window
 			log += ("~/.bash_history").read if 
 				"~/.bash_history".exists?
 			#end  
-			$stack = Writer.new( input:log,# log:true,
-				#summary:true, 
+			$stack = Writer.new( input:log,
 				x: LEFT, selection:true,
 				file: "~/.orb/stack", delimiter:$/ )
 		end
@@ -81,7 +82,6 @@ class ORB #< Window
 		$world << $stack
 		#$help=Writer.new input: "help.txt".read
 		#$world << $help
-		#super 0,0,0,0
 	end
 	def help
 		$stack << DEFAULT
