@@ -2,29 +2,31 @@
  <= user directory
  <= current working directory
  <= all commands in PATH
- <= 
+ <= contacts 
  <= host browser
+ <= last commands
     
-    O.rb 0.5
+    O.rb 1.0
 
-		/ files
-		? of type
-		@ people
-		: hosts
-		- options
-		+ adding
-		> command
+    / files
+    ? type
+    @ people
+    : hosts
+    : options
+    + adding
+    > command
     # tag
+    . config
 		
     F1	help
     F12 colors 
     ESC exit
 				      
-    keyboard: type in your choice, when highlighted, 
-	   					press TAB to select.
+    keyboard: type in your choice, highlight with , 
+              press TAB to select.
     mouse : move your pointer over your choice, 
-    				click left for default action,
-    				right for action list
+            click left for default action,
+            right for action list
     touch : tap for default, 
-    				twofinger tap for actions
+            twofinger tap for actions
     
