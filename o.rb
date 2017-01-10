@@ -51,9 +51,9 @@ DEFAULT = [
 
 $world << (HEAD = Writer.new content:[ Host.new, User.new,
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
-	x: LEFT, y: 0, height:0, delimiter:'', selection:false)
+	x: LEFT, y: 0, height:1, selection:false)
 $world << (COMMAND = Writer.new content:[],
-	prefix: ">",	x: LEFT, y: lines-1, height:0,
+	prefix: ">",	x: LEFT, y: lines-2, height:1,
 	delimiter:' ', selection:false)
 
 # main class
@@ -63,7 +63,7 @@ class ORB #< Window
 			$stack = Writer.new x: LEFT, file: "~/.orb/stack", 
 				content: Psych.load_file( "~/.orb/stack".path ),
 			  #height:10,y:TOP,
-				delimiter:$/, selection:true
+				delimiter:$/, selection:true#, raw: false
 		else
 			"~/.orb/stack".touch
 			#for shell in %w[ bash zsh ]
@@ -74,8 +74,8 @@ class ORB #< Window
 			log += ("~/.bash_history").read if 
 				"~/.bash_history".exists?
 			#end  
-			$stack = Writer.new( input:log,
-				x: LEFT, selection:true,
+			$stack = Writer.new( content:log,
+				x: LEFT, selection:true, raw: false,
 				file: "~/.orb/stack", delimiter:$/ )
 		end
 		$stack << DEFAULT

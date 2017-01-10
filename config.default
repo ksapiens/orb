@@ -11,8 +11,9 @@ TERM = "urxvt -hold -e "
 
 F = 1000
 H = 618
+#H = 764
 M = 382
-#ML= 236
+#L= 236
 L = 146
 
 COLORS = {	#		R			G			B

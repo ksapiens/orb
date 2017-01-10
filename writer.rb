@@ -5,43 +5,37 @@
 # copyright 2016 kilian reitmayr
 require "helpers.rb"
 
-#class Area < Pad#Window
-#
-#	def initialize args 
-#
-#	end
-#end
-
 class Writer < Pad #Window #
-	attr_accessor :content, :delimiter, :page
+	attr_accessor :content, :page
+	#attr_reader :delimiter
 	include Generic
 	def initialize args 
 		parse args  
-		#LOG.debug "before %s %s %s %s" % [@y, @x, @height, @width]
-		@x ||= ($world.last.right + MARGIN + 1)||LEFT
+		
+		@x ||= ($world.last.right + MARGIN + 1) or LEFT
 		@y ||= TOP
 		@width ||= (cols-@x)
 		@height ||= lines - TOP - BOTTOM - 2
-		@delimiter ||= ""
+		@delimiter ||= $/
 		@page ||= 0
-		#LOG.debug "var %s %s %s %s" % [@y, @x, @height, @width]
+		LOG.debug "writer %s %s %s %s" % [@y, @x, @height, @width]
+		#LOG.debug "content : #{@content}" 
 		super 1000,@width
 		#@input = @input.read if @input.is_a? File
-		case @input
+		case @content
 			when String
 				#fork do 
-				@text = true
-				@content = understand @input#, @log
-				
-				#@delimiter = ""
+				@content = understand @content 
+				@raw ||= true
+				@delimiter ||= ""
 				#end
-			when Command
-				@content = @input.primary			
-				@text = true
+			#when Command
+			#	@content = @content.primary			
+			#	@raw = true
 				#@input.entries.map{|line| Text.new line }
-			when Enumerable
-				@content = @input
-				@delimiter = $/
+			#when Enumerable
+			#	@content = @input
+			#	@delimiter = $/
 		end
 		
 		work
@@ -50,12 +44,13 @@ class Writer < Pad #Window #
 	def understand this#, log=false
 		result = []
 		if this.start_with? "__LOG" #log #@type == :log
-			@text = false
+#			@raw = false
+#			@delimiter = $/
 			for lines in this.lines
 				for line in lines.split "|"
 					command = Command.new( line )
-					LOG.debug command
-					result << command.sequence.first if command.sequence
+					#LOG.debug command
+					result << command.items.first if command.items
 					#result << command if command.sequence
 				end
 			end
@@ -69,7 +64,7 @@ class Writer < Pad #Window #
 		shapes = /\W(?<Entry>(\/[[:alnum:]]+)+)\W/
 		match = shapes.match this
 			if match 
-					LOG.debug match#.post_match
+		#			LOG.debug match#.post_match
 				text = match.pre_match
 				item = match.to_h.select{|k,v| v}
 #					LOG.debug item#match#.post_match
@@ -79,7 +74,7 @@ class Writer < Pad #Window #
 				text = this #word )
 				
 			end
-			result << text.lines.map{ |line| Text.new( line ) } if @text
+			result << text.lines.map{ |line| Text.new( line ) } if @raw
 			#LOG.debug result#this[0..20]				
 		end while match && this = match.post_match
 		
@@ -88,34 +83,30 @@ class Writer < Pad #Window #
 	def index; $world.index self; end
 	def focus?; $focus == index; end
 	def list?; @delimiter == $/; end
-	def paging?; @content.size > @height ; end
-	def pageup?; @page > 0 && paging?; end
+	def paging?; @content.size > @height and @height > 2; end
+	def pageup?; @page > 0 and paging?; end
 	#def pagedown?; @pagedown && paging?; end
-	def pagedown?; view[-1] != @content[-1]; end
+	def pagedown?; view[-1] != @content[-1] and paging?; end
 	#def pagedown?; @start < @content[-1].y-@height; end
 	#def oneline?; @height < 3; end
 	def page direction
 		#@start += direction * (@height - 2)
 		@page += direction if (direction==NEXT ? pagedown? : pageup?)
-		#update
 	end
 	def add (item);	@content << item;work; end
 	def << (object) 		
 		#LOG.debug " << :#{object}"
 		$world = $world[0..index] if index
 		@content.unshift(object).flatten!
-		@content.uniq! {|item| item.image.join "" }
+		@content.uniq! {|item| item.type + item.name }
 		@file.write @content.to_yaml if @file
-		#LOG.debug @file #bject.to_s
-		#update
 		work
 	end
 
 	def view 
 		if paging? && !$filter.empty? && focus?
-			LOG.debug "#{$filter} > "
-			return @content.reject{|i| !i.image.join.downcase.index(
-				$filter) } 
+			#LOG.debug "#{$filter} > "
+			return @content.select{|i| i.name.downcase.index($filter)}
 			#[@start..@start+height-2]
 		elsif list?
 			#
@@ -143,21 +134,23 @@ class Writer < Pad #Window #
 	def work
 		clear 
 		setpos 0,0
-		#draw $/ if pageup?
 		draw @prefix if @prefix
+		LOG.debug " > #{self}"
 		#@pageup = false if view[0] == @content[0]
-		view.each_with_index{ |item,i| #@content #
-			#draw $/ if not list? && curx + item.width > width #&& item.width < width
-			images = item.image @text #list? #self, @selection				
-			draw @delimiter unless curx == 0 or not @delimiter
+		#draw $/ if not list? && curx + item.width > width #&& item.width < width
+			#image = item.image #@raw #list? #self, @selection				
+		for item in @content #view
+			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury
-			draw item.type.colored :dark unless @text
-			for image in images
-				#image=image[0..width-curx-1].colored(image.color)if list?
-				draw image, selection:(@selection and focus?)				
-			end
-			#LOG.debug "item > #{item.inspect}"
-		}
+			draw item.type.colored :dark unless @raw
+			#image=image[0..width-curx-1].colored(image.color)if list?
+			draw ((item.has?(:@path) and @raw)? 
+				item.path : item.name).colored(item.color), 
+				selection:(@selection and focus?)
+			draw " " + item.description[curx..@width-curx].colored(
+				:bright), selection:(@selection and focus?) if 
+					item.has?(:@description) and @width > LIMIT and @height > 1
+		end
 		#box '|', '-' 
 		update
 	end
@@ -180,12 +173,11 @@ class Writer < Pad #Window #
 			page PREVIOUS
 			return
 		elsif list?
-			target =  view[y+start]
+			target =  @content[y+start]
 			#results =  view[y+start].action
 			LOG.debug "pointer :#{x}, #{y}" 			
 		else
 			#halt
-			
 			for item in view#[1..-1] #@content#
 #				LOG.debug "previous :#{previous.x}, #{previous.y}" 
 				previous ||= item
@@ -201,20 +193,21 @@ class Writer < Pad #Window #
 			end unless view.size == 1
 			results ||= previous.action( id ) #unless results
 		end
-#		LOG.debug "result :#{results}" 
+		LOG.debug "target :#{target}" 
 		#target = @content[-1] unless target
 			
 		$stack << target unless 
-			[Add, Option, Section, Text].include? target.class
+			[Add, Option, Section, Text, Collection
+				].include? target.class
 		return unless results = target.action( id )
 		$world=$world[0..2]
 		for result in results
 			unless result.empty?		
-#				LOG.debug "result: #{result}"#target #item				
+				LOG.debug "result: #{result}"#target #item				
 				$world.last.trim #unless result.empty?		
 				$world << Writer.new( 
 					x:$world.last.right+MARGIN+2,
-					input: result, selection:true
+					content: result, selection:true
 					#delimiter:(result.is_a? String ? '':$/) 
 					) 
 			
