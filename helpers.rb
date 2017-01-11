@@ -62,7 +62,7 @@ class String
     	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
     	#type = "config" 
     	type += "file" if type == "text" 
-    	(eval type.capitalize).new Shellwords.escape path
+    	(eval type.capitalize).new Shellwords.escape(path), :short
     end
   end
 end
@@ -80,7 +80,9 @@ class Fixnum
 		copy = self + direction
 		copy = min if copy > max
 		copy = max if copy < min
+		LOG.debug "#{self} to #{copy}"
 		copy
+
 		#cycle direction unless $world[copy].paging?
 	end
 #		return min if copy < min

@@ -7,12 +7,10 @@ require "helpers.rb"
 
 class Writer < Pad #Window #
 	attr_accessor :content, :page
-	#attr_reader :delimiter
 	include Generic
 	def initialize args 
 		parse args  
-		
-		@x ||= ($world.last.right + MARGIN + 1) or LEFT
+		@x ||= ($world.last.right + 1 + MARGIN ) or LEFT
 		@y ||= TOP
 		@width ||= (cols-@x)
 		@height ||= lines - TOP - BOTTOM - 2
@@ -25,21 +23,14 @@ class Writer < Pad #Window #
 		case @content
 			when String
 				#fork do 
-				@content = understand @content 
-				@raw ||= true
-				@delimiter ||= ""
+					@content = understand @content 
 				#end
 			#when Command
 			#	@content = @content.primary			
 			#	@raw = true
 				#@input.entries.map{|line| Text.new line }
-			#when Enumerable
-			#	@content = @input
-			#	@delimiter = $/
 		end
-		
 		work
-		refresh 0,0, @y, @x, @y+@height, @x+@width
 	end
 	def understand this#, log=false
 		result = []
@@ -51,9 +42,11 @@ class Writer < Pad #Window #
 					command = Command.new( line )
 					#LOG.debug command
 					result << command.items.first if command.items
-					#result << command if command.sequence
 				end
 			end
+		else
+			@raw = true
+			@delimiter = ""
 		end
 		
 		begin
@@ -61,13 +54,13 @@ class Writer < Pad #Window #
 		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
 		
 #		shapes = /(?<Host>(\w+:\/\/)?([\w\.-]+\.(?:gg|de|com|org|net))|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})([\w\/]+)*\s)?|\W(?<Entry>(\/\w+)+)/
-		shapes = /\W(?<Entry>(\/[[:alnum:]]+)+)\W/
-		match = shapes.match this
+			shapes = /\W(?<Entry>(\/[[:alnum:]]+)+)\W/
+			match = shapes.match this
 			if match 
 		#			LOG.debug match#.post_match
 				text = match.pre_match
 				item = match.to_h.select{|k,v| v}
-#					LOG.debug item#match#.post_match
+	#					LOG.debug item#match#.post_match
 				result << eval( item.keys.first + #if item
 					".new '#{item.values.first}'" )
 			else					
@@ -77,7 +70,6 @@ class Writer < Pad #Window #
 			result << text.lines.map{ |line| Text.new( line ) } if @raw
 			#LOG.debug result#this[0..20]				
 		end while match && this = match.post_match
-		
 		result.flatten #@content = result 
 	end
 	def index; $world.index self; end
@@ -92,6 +84,7 @@ class Writer < Pad #Window #
 	def page direction
 		#@start += direction * (@height - 2)
 		@page += direction if (direction==NEXT ? pagedown? : pageup?)
+		work
 	end
 	def add (item);	@content << item;work; end
 	def << (object) 		
@@ -104,59 +97,61 @@ class Writer < Pad #Window #
 	end
 
 	def view 
-		if paging? && !$filter.empty? && focus?
+		if list?	
+			if paging? and !$filter.empty? and focus?
 			#LOG.debug "#{$filter} > "
-			return @content.select{|i| i.name.downcase.index($filter)}
-			#[@start..@start+height-2]
-		elsif list?
-			#
-			#return @content[@pages[@page]..-1]
-			return @content[0..stop]
+				result = @content.select{|i| 
+					i.to_s.downcase.index($filter)}
+			else
+				result = @content
+			end
 			#result = @content.select{|item|
 				#item.y.between? @start, @start+height-2 }
-		else
-			return @content
+			return result[start..stop] 
 		end
+		@content	
+		#end
 	end	
 	def start; @page*@height;end
 	def stop; (@page+1)*@height;end
 	def update
 		if height > 2 #list?
-			draw ("v" * width), y:stop, highlight:focus? if 
-				pagedown?
-			draw ("^" * width), y:start, highlight:focus? if 
-				pageup?
-			draw (" " * width), y:stop, highlight:focus? unless 
-				paging?
+			draw ("v" * width), color: :dark, y:stop, 
+				highlight:focus? if pagedown?
+			draw ("^" * width), color: :dark, y:start, 
+				highlight:focus? if 	pageup?
+			draw (" " * width), color: :dark, y:stop, 
+				highlight:focus? unless paging?
 		end
 		refresh start,0, @y, @x, @y+@height, @x+@width#right,bottom
 	end	
 	def work
 		clear 
-		setpos 0,0
+		setpos start,0
 		draw @prefix if @prefix
-		LOG.debug " > #{self}"
+		#LOG.debug " > #{self}"
 		#@pageup = false if view[0] == @content[0]
 		#draw $/ if not list? && curx + item.width > width #&& item.width < width
 			#image = item.image #@raw #list? #self, @selection				
-		for item in @content #view
+		for item in view
 			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury
-			draw item.type.colored :dark unless @raw
+			draw item.type, color: :dark unless @raw
 			#image=image[0..width-curx-1].colored(image.color)if list?
-			draw ((item.has?(:@path) and @raw)? 
-				item.path : item.name).colored(item.color), 
-				selection:(@selection and focus?)
-			draw " " + item.description[curx..@width-curx].colored(
-				:bright), selection:(@selection and focus?) if 
-					item.has?(:@description) and @width > LIMIT and @height > 1
+			draw ((item.alias)? item.alias : item.name), 
+				color: item.color, selection:(@selection and focus?)
+			draw " " + item.description[0..@width-curx-2], 
+				color: :bright, selection:(@selection and focus?) if 
+					#item.has?(:@description) and 
+					@width > LIMIT and list? #@height > 1
 		end
 		#box '|', '-' 
 		update
 	end
 	def trim
 		clear
-		@width = LIMIT
+		@width = view.max{ |a, b| 
+			a.width <=> b.width }.width.max LIMIT
 		update
 		#resize @height, LIMIT #unless self == $world.last
 	end
@@ -173,7 +168,7 @@ class Writer < Pad #Window #
 			page PREVIOUS
 			return
 		elsif list?
-			target =  @content[y+start]
+			target =  view[y]
 			#results =  view[y+start].action
 			LOG.debug "pointer :#{x}, #{y}" 			
 		else
@@ -201,20 +196,18 @@ class Writer < Pad #Window #
 				].include? target.class
 		return unless results = target.action( id )
 		$world=$world[0..2]
+		$filter.clear
 		for result in results
 			unless result.empty?		
 				LOG.debug "result: #{result}"#target #item				
 				$world.last.trim #unless result.empty?		
 				$world << Writer.new( 
 					x:$world.last.right+MARGIN+2,
-					content: result, selection:true
-					#delimiter:(result.is_a? String ? '':$/) 
-					) 
-			
+					content: result, selection:true	) 
 			end 
 		end
-		$focus=$world.size-1#$focus.cycle NEXT, 2, $world.size-1		
-		$filter.clear
+		$focus=$world.size-1
+		
 		work
 	end
 end

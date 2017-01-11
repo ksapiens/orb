@@ -17,6 +17,7 @@ require "entities.rb"
 require "writer.rb"
 
 #eval "config.default".read
+halt
 
 NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
@@ -28,19 +29,16 @@ eval "~/.orb/config".read
 
 init if __FILE__ == $0
 
-$world = []
+$world,$selection = [],[]
+$focus,$choice,$counter = 2,0,0
 $filter=""
-$selection = []
-$focus = 2
-$choice = 0
-$counter = 0
 
 DEFAULT = [
 	Directory.new( "/", "root" ),
 	Directory.new( ENV["HOME"], "home" ),
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
-		Directory.new path }, "commands" ),
+		Directory.new path, :short }, "commands" ),
 	Type.new(Type, "types"),
 	Type.new(User, "people"),
 	Type.new(Host, "web"),
@@ -51,9 +49,9 @@ DEFAULT = [
 
 $world << (HEAD = Writer.new content:[ Host.new, User.new,
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
-	x: LEFT, y: 0, height:1, selection:false)
+	x: LEFT, y: 0, height:1, delimiter:'', selection:false)
 $world << (COMMAND = Writer.new content:[],
-	prefix: ">",	x: LEFT, y: lines-2, height:1,
+	prefix: ">",	x: LEFT, y: lines-1, height:1,
 	delimiter:' ', selection:false)
 
 # main class

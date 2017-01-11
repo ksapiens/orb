@@ -32,7 +32,7 @@ class Window
 	end
 
 	def draw string, args={} 
-		attron color_pair COLORS.keys.index(string.color||:white) 
+		attron color_pair COLOR.keys.index(args[:color]||:white) 
 		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
 		#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
 		match = /(#{$filter})/i.match(string) unless 
@@ -65,7 +65,7 @@ def init
   curs_set 0
   mousemask(ALL_MOUSE_EVENTS)
 	stdscr.keypad(true)
-	COLORS.each_with_index do |color,i|
+	COLOR.each_with_index do |color,i|
 		init_color i, *color[1][0]
 		#init_color i+20, *color[1].map{ |value| value+=100 }
 		#init_color i+40, *color[1].map{ |value| value-=100 }

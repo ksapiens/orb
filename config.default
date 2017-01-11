@@ -1,7 +1,7 @@
 
 # GLOBALS
 
-MARGIN = 1
+MARGIN = 0	
 TOP =  2
 LEFT = 1
 BOTTOM = 1
@@ -13,11 +13,11 @@ F = 1000
 H = 618
 #H = 764
 M = 382
-#L= 236
-L = 146
+L= 236
+VL = 146
 
-COLORS = {	#		R			G			B
-	background:	[[ L,L,L ]],
+COLOR = {	#		R			G			B
+	background:	[[ VL,VL,VL ]],
 
 	red:				[[ H,L,L ],Executable],
 	orange:			[[ H,M,L ],Entry],
@@ -25,11 +25,25 @@ COLORS = {	#		R			G			B
 	green:			[[ L,H,L ],Image,Host],
 	cyan:				[[ L,H,H ],Video,Type],
 	blue:				[[ L,L,H ],Audio,Option,User],
-	magenta:		[[ H,L,H ],Special],
+	magenta:		[[ H,L,H ],Special,Collection],
 
 	dark:				[[ M,M,M ],Item],
 #	grey:				[[ M,M,M ]],
-	bright:			[[ H,H,H ],Section,Text,Textfile],
-	white:			[[ F,F,F ],Add]
+	bright:			[[ H,H,H ],Section,Text],
+	white:			[[ F,F,F ],Add,Textfile]
 }
 
+TYPE = {
+	item:				'',
+	section:		' ',
+	entry:			'/',
+	host:				':',
+	user:				'@',
+	type:				'?',
+	add:				'+',
+	collection:	'*',
+	command:		'>',
+	option:			'-'
+	
+}
+	
