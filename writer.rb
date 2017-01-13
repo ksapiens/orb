@@ -16,6 +16,7 @@ class Writer < Pad #Window #
 		@height ||= lines - TOP - BOTTOM - 2
 		@delimiter ||= $/
 		@page ||= 0
+		@content ||= []
 		LOG.debug "writer %s %s %s %s" % [@y, @x, @height, @width]
 		#LOG.debug "content : #{@content}" 
 		super 1000,@width
@@ -30,7 +31,8 @@ class Writer < Pad #Window #
 			#	@raw = true
 				#@input.entries.map{|line| Text.new line }
 		end
-		work
+		
+		work 
 	end
 	def understand this#, log=false
 		result = []
@@ -115,17 +117,16 @@ class Writer < Pad #Window #
 	def start; @page*@height;end
 	def stop; (@page+1)*@height;end
 	def update
-		if height > 2 #list?
-			draw ("v" * width), color: :dark, y:stop, 
-				highlight:focus? if pagedown?
-			draw ("^" * width), color: :dark, y:start, 
-				highlight:focus? if 	pageup?
-			draw (" " * width), color: :dark, y:stop, 
-				highlight:focus? unless paging?
+		if @height > 2 #list?
+			common={color: :bright,y:stop,x:@width-1,highlight:focus?}
+			draw "v", common if pagedown?
+			draw "^", common.merge( y:start) if 	pageup?
+			draw " ", common unless paging?
 		end
 		refresh start,0, @y, @x, @y+@height, @x+@width#right,bottom
 	end	
 	def work
+		return unless INVOKED
 		clear 
 		setpos start,0
 		draw @prefix if @prefix
@@ -138,30 +139,30 @@ class Writer < Pad #Window #
 			item.x,item.y = curx,cury
 			draw item.type, color: :dark unless @raw
 			#image=image[0..width-curx-1].colored(image.color)if list?
-			draw ((item.alias)? item.alias : item.name), 
+			draw item.to_s[0..@width-curx-2], 
 				color: item.color, selection:(@selection and focus?)
-			draw " " + item.description[0..@width-curx-2], 
+			draw " " + item.description[0..@width-curx-3], 
 				color: :bright, selection:(@selection and focus?) if 
 					#item.has?(:@description) and 
-					@width > LIMIT and list? #@height > 1
+					@width - curx > LIMIT and list? #@height > 1
 		end
 		#box '|', '-' 
 		update
 	end
 	def trim
 		clear
-		@width = view.max{ |a, b| 
-			a.width <=> b.width }.width.max LIMIT
-		update
+		items = view + [" "," "]
+		@width = (items.max{ |a, b| 
+			a.length <=> b.length }.length+2).max LIMIT 
+		#update
 		#resize @height, LIMIT #unless self == $world.last
 	end
-	def action id=KEY_TAB, x=left,y=top
-		x -= left; y -= top		
+	def action id=KEY_TAB, x=0,y=0
 		if self == COMMAND
-			LOG.debug "command :#{@content}"
+			#LOG.debug "command :#{@content}"
 			#results = Command.new( @content.dup ).execute 
 			target = Command.new( @content.dup )
-		elsif y==height-1 && pagedown?
+		elsif y==bottom-1 && pagedown?
 			page NEXT
 			return
 		elsif y==0 && pageup?
@@ -198,16 +199,15 @@ class Writer < Pad #Window #
 		$world=$world[0..2]
 		$filter.clear
 		for result in results
-			unless result.empty?		
-				LOG.debug "result: #{result}"#target #item				
-				$world.last.trim #unless result.empty?		
-				$world << Writer.new( 
-					x:$world.last.right+MARGIN+2,
-					content: result, selection:true	) 
-			end 
+			next if result.empty?		
+			#LOG.debug "result: #{result}"#target #item				
+			$world.last.trim #unless result.empty?		
+			$world << Writer.new( 
+				#x:$world.last.right+MARGIN+2,
+				content: result, selection:true	) 
 		end
-		$focus=$world.size-1
-		
-		work
+#		$focus=$world.size-1
+		$focus=$focus.cycle NEXT, 2, $world.size-1					
+#		work
 	end
 end

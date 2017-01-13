@@ -20,7 +20,7 @@ class Window
 	alias :left :begx
 	alias :width :maxx
 	alias :top :begy
-	alias :height :maxy
+	#alias :height :maxy
 	
 	def right; left + @width - 1; end
 	def bottom; top + @height - 1; end

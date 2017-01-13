@@ -5,14 +5,18 @@
 # copyright 2016 kilian reitmayr
 
 class Item #< String
-	attr_reader :name#, :type#, :shape#
-#	attr_reader :type#, :shape#
-	attr_accessor :x, :y, :alias#, :skip#, :area 
+	class << self
+		attr_accessor :default
+	end
+	def self.descendants
+  	ObjectSpace.each_object(Class).select{ |klass| klass < self }
+  end
+
+	attr_reader :name
+	attr_accessor :x, :y, :alias
 	def to_s; @alias ? @alias : @name; end
-	def width; to_s.length; end
-#	def self.type name; @type = name; end
-#	def self.color name;	@color = name; end
-#	def self.shape name;	@shape = name; end
+	#def to_s; @name; end
+	def length; to_s.length; end
 	def type name=self.class
 		until type = TYPE[name.to_s.downcase.to_sym]
 			name = name.superclass 
@@ -45,6 +49,13 @@ class Item #< String
 end
 
 class Entry < Item
+	def primary; open; nil; end
+	def open		
+		return unless default = self.class.default
+		default.add
+		self.add
+	end
+			
 	def initialize path, _alias=nil#path#.split("/")[-1]
 		_alias = path.split("/")[-1] if _alias == :short
 		super path.path, _alias#.gsub /$\//, ''
@@ -54,7 +65,7 @@ class Entry < Item
 		@description or begin
 			if (whatis = `whatis #{@name} 2>/dev/null`).empty? 
 				#@description = @name.[0..-1*@alias.size] + `ls -dalh #{@name} 2>/dev/null`
-				@description = @name +" "+`ls -dalh #{@name} 2>/dev/null`
+				@description = @name +" - "+`ls -dalh #{@name} 2>/dev/null`
 			else
 				@description = whatis.lines.first[23..-1] 
 			end
@@ -62,6 +73,7 @@ class Entry < Item
 	end
 end
 class Directory < Entry
+	def primary; content; end
 	def content #restore=nil
 		#super
 		files,directories = [],[] #@entries = { right: [], down: [] }
@@ -77,12 +89,12 @@ end
 
 class Executable < Entry
 	attr_accessor :history
+	def primary; content; end
 	def initialize path, _alias
 		super path, _alias
 		@history = []
 	end
 	def content 
-		#super
 		COMMAND.content.clear
 		COMMAND.add self
 		man = ManPage.new(@name)
@@ -155,9 +167,13 @@ class Command < Collection
 	end
 	def add; COMMAND.content = @items; end
 	def content
-		LOG.debug "com #{self}"
+		LOG.debug "command #{@items.map(&:name).join ' '}"
 		@items.first.history << self
-		[ `#{@items.join ' '} 2>/dev/null` ]
+		if (object = @items.last).is_a? Entry 
+#			default = @items.[
+			object.class.default ||= Command.new @items[0..-2] 
+		end
+		[ `#{@items.map(&:name).join ' '} 2>/dev/null` ]
 	end
 end
 
@@ -166,9 +182,9 @@ class Option < Item
 	def initialize outline, description=""
 		#@type = "-"
 		#/(?<name>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
-		@name, @delimiter, @parameter = /-(-?[[:alnum:]]*)([ =]?)(.*)$/.match( outline )[1..3]
+		@name, @delimiter, @parameter = /(--?[[:alnum:]]*)([ =]?)(.*)$/.match( outline )[1..3]
 		@description = description#.colored :description
-		super @name
+		super @name, @name[1..-1]
 	end
 	#def image #long=false#x=nil, y=nil, area
 		#@name[0..9].ljust(10).draw \
@@ -190,7 +206,7 @@ class User < Item
 	#def content;	end
 end
 class Host < Item
-	def initialize name="localhost"
+	def initialize name=(`hostname`.strip or "localhost")
 		super name
 		#@type = ":"
 		#@shape = //

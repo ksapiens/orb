@@ -13,10 +13,9 @@ def halt
 	binding.pry 
 end
 
-def cont
-	init_screen
-
-end
+#def cont
+#	init_screen
+#end
 
 module Generic
 	def parse args, local = false
@@ -35,7 +34,7 @@ class String
 #		@color = color
 #	end
 	
-	{ FileUtils: %w[ cd mkdir touch ],
+	{ FileUtils: %w[ cd mkdir touch rm ],
 		FileTest: %w[ exists? directory? executable? ] 
 	}.each{ |klass, methods| 
 		for method in methods

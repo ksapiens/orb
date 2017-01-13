@@ -6,7 +6,8 @@
 #
 # copyright 2016 kilian reitmayr
 
-$LOAD_PATH << "#{File.dirname __FILE__}/."
+#$LOAD_PATH 
+$: << __dir__ #"#{File.dirname __FILE__}/."
 require 'logger'
 #require 'yaml'
 require 'psych'
@@ -16,8 +17,9 @@ require "manual.rb"
 require "entities.rb"
 require "writer.rb"
 
+INVOKED = (__FILE__ == $0)
 #eval "config.default".read
-halt
+halt if INVOKED
 
 NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
@@ -27,7 +29,7 @@ LOG = Logger.new("orb.log")
 	"~/.orb/config".exists?
 eval "~/.orb/config".read
 
-init if __FILE__ == $0
+init if INVOKED
 
 $world,$selection = [],[]
 $focus,$choice,$counter = 2,0,0
@@ -39,19 +41,20 @@ DEFAULT = [
 	Directory.new( ENV["PWD"], "work"),
 	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
 		Directory.new path, :short }, "commands" ),
-	Type.new(Type, "types"),
-	Type.new(User, "people"),
-	Type.new(Host, "web"),
+	Collection.new( ( [User,Host,Command] + 
+		Entry.descendants ).map{|c| Type.new(c)}, "types"),
+#	Type.new(User, "people"),
+#	Type.new(Host, "web"),
 #	Type.new(Config, "config"),
-	Type.new(Command, "history")
+#	Type.new(Command, "history")
 	
 ]
 
-$world << (HEAD = Writer.new content:[ Host.new, User.new,
+$world << (HEAD = Writer.new content:[ User.new, Host.new, 
 	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
-	x: LEFT, y: 0, height:1, delimiter:'', selection:false)
+	x: LEFT, y: 0, height:0, delimiter:'', selection:false)
 $world << (COMMAND = Writer.new content:[],
-	prefix: ">",	x: LEFT, y: lines-1, height:1,
+	prefix: ">",	x: LEFT, y: lines-1, height:0,
 	delimiter:' ', selection:false)
 
 # main class
@@ -103,19 +106,21 @@ class ORB #< Window
 					y.between?( area.top, area.bottom )
 				#LOG.debug area.inspect
 				#LOG.debug "x: %s y: %s" % [x, y]
-				area.action id, x, y 
+				
+				area.action id, x - area.left, y - area.top
 				break
 			end
 		end
 	end
 	def run
 		loop do
-			$world[$focus].work
+#			$world[$focus].work
  			$counter = 0
- 			$world.each( &:update )
+# 			$world.each( &:update )
+ 			$world.each( &:work )
     	#halt
     	input = getch #Event.poll 
-			#LOG.debug "input :#{input}"
+			LOG.debug "input :#{input}"
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -163,12 +168,10 @@ class ORB #< Window
     end
   end
 begin
-		ORB.new.run if __FILE__ == $0
+		ORB.new.run if INVOKED
 end
 ensure
 #	LOG.debug "ensure"
-	#halt
 	use_default_colors()
-	
-  close_screen
+  close_screen if INVOKED
 end

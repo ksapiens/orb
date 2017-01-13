@@ -1,0 +1,4 @@
+---
+- !ruby/object:Directory
+  name: test/data
+  alias: 
