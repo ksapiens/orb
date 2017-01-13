@@ -12,6 +12,7 @@ include Curses
 
 KEY_ESC = 27
 KEY_TAB = 9
+KEY_SHIFT_TAB = 353
 KEY_RETURN = 10
 
 class Window 

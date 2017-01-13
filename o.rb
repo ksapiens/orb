@@ -19,7 +19,7 @@ require "writer.rb"
 
 INVOKED = (__FILE__ == $0)
 #eval "config.default".read
-halt if INVOKED
+halt if INVOKED and $1 == "-d"
 
 NEXT, PREVIOUS = 1, -1
 LOG = Logger.new("orb.log")
@@ -90,7 +90,7 @@ class ORB #< Window
 	end
   def colortest
 		clear
-		COLORS.each_with_index do |color,i|
+		COLOR.each_with_index do |color,i|
 			setpos i,LEFT
 			attron color_pair i
 			addstr "#{color[0]} - #{color_content i}"
@@ -149,12 +149,8 @@ class ORB #< Window
 					$focus=$focus.cycle NEXT, 2, $world.size-1					
 				when KEY_LEFT
 					$focus=$focus.cycle PREVIOUS, 2, $world.size-1
-				when KEY_TAB, KEY_CTRL_A
-					
+				when KEY_TAB, KEY_SHIFT_TAB, KEY_CTRL_A
 					action input, *$selection[$choice]#.first
-#					$filter.clear
-										
-					#$focus.cycle NEXT, 2, $world.size-1		
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.action #primary
         when String

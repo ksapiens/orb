@@ -118,10 +118,10 @@ class Writer < Pad #Window #
 	def stop; (@page+1)*@height;end
 	def update
 		if @height > 2 #list?
-			common={color: :bright,y:stop,x:@width-1,highlight:focus?}
-			draw "v", common if pagedown?
-			draw "^", common.merge( y:start) if 	pageup?
-			draw " ", common unless paging?
+			common={color: :white,y:stop,x:@width-1,highlight:focus?}
+			draw "v", common 									if pagedown?
+			draw "^", common.merge( y:start )	if pageup?
+			draw " ", common 							unless paging?
 		end
 		refresh start,0, @y, @x, @y+@height, @x+@width#right,bottom
 	end	
@@ -159,22 +159,18 @@ class Writer < Pad #Window #
 	end
 	def action id=KEY_TAB, x=0,y=0
 		if self == COMMAND
+			return if @content.empty?
 			#LOG.debug "command :#{@content}"
-			#results = Command.new( @content.dup ).execute 
-			target = Command.new( @content.dup )
-		elsif y==bottom-1 && pagedown?
-			page NEXT
-			return
-		elsif y==0 && pageup?
-			page PREVIOUS
-			return
+			target = Command.new( @content.dup ) 
+		elsif y==bottom-1 and x == width-1 and pagedown?
+			page NEXT; return
+		elsif y==0 and x == width-1 and pageup?
+			page PREVIOUS; return
 		elsif list?
-			target =  view[y]
-			#results =  view[y+start].action
+			target = view[y]
 			LOG.debug "pointer :#{x}, #{y}" 			
 		else
-			#halt
-			for item in view#[1..-1] #@content#
+			for item in view
 #				LOG.debug "previous :#{previous.x}, #{previous.y}" 
 				previous ||= item
 				#next unless previous #|| false
@@ -191,12 +187,11 @@ class Writer < Pad #Window #
 		end
 		LOG.debug "target :#{target}" 
 		#target = @content[-1] unless target
-			
 		$stack << target unless 
-			[Add, Option, Section, Text, Collection
-				].include? target.class
+			[Add, Option, Section, Text, Action, Collection
+				].include? target.class 
 		return unless results = target.action( id )
-		$world=$world[0..2]
+		$world=$world[0..2]		
 		$filter.clear
 		for result in results
 			next if result.empty?		
@@ -206,8 +201,8 @@ class Writer < Pad #Window #
 				#x:$world.last.right+MARGIN+2,
 				content: result, selection:true	) 
 		end
+		$focus = 3
 #		$focus=$world.size-1
-		$focus=$focus.cycle NEXT, 2, $world.size-1					
-#		work
+		#$focus=$focus.cycle NEXT, 2, $world.size-1					
 	end
 end

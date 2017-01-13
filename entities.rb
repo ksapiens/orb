@@ -5,9 +5,7 @@
 # copyright 2016 kilian reitmayr
 
 class Item #< String
-	class << self
-		attr_accessor :default
-	end
+	class << self; attr_accessor :default; end
 	def self.descendants
   	ObjectSpace.each_object(Class).select{ |klass| klass < self }
   end
@@ -31,41 +29,64 @@ class Item #< String
 	def initialize name='', _alias=nil 
 		@name ||= name#.colored color
 		@alias ||= _alias
+		@actions = %w[ content open add rename ].map{ |name| 
+			Action.new name, self }
 	end
 	def has? variable; instance_variables.include? variable; end 
 	def description;""; end
-	def primary; content; end
-	def content; end
-	def add; COMMAND.add self; end
-	def action id=KEY_TAB
-		#LOG.debug "action #{id}"
-		case id
-			when KEY_TAB, KEY_MOUSE
-				primary #content
-			when KEY_CTRL_A
-				add
-		end
-	end
-end
-
-class Entry < Item
-	def primary; open; nil; end
+	#def primary; content; end
+	#def secondary; list; end
 	def open		
 		return unless default = self.class.default
 		default.add
 		self.add
 	end
-			
+	
+	def content; end
+	#def list;	end	
+	def add; COMMAND.add self; end
+	def rename; @alias = COMMAND.getstr; end
+	def action id=KEY_TAB
+		#LOG.debug "action #{id}"
+		case id
+			when KEY_TAB, KEY_MOUSE
+				eval @actions.first.to_s #primary				
+			when KEY_SHIFT_TAB
+				[ @actions ] #list #secondary
+			when KEY_CTRL_A
+				add
+			when KEY_CTRL_R
+				rename
+		end
+	end
+	def default action
+		@actions.unshift(Action.new action, self).uniq!
+	end
+end
+
+class Action < Item
+	def initialize name, item
+		@item = item
+		@name = name
+		#super name
+	end
+	def action id=nil #primary
+		@item.instance_eval @name
+	end
+end
+
+class Entry < Item
+	#def primary; open; nil; end
 	def initialize path, _alias=nil#path#.split("/")[-1]
 		_alias = path.split("/")[-1] if _alias == :short
 		super path.path, _alias#.gsub /$\//, ''
+		default "open"
 	end
 
 	def description
 		@description or begin
 			if (whatis = `whatis #{@name} 2>/dev/null`).empty? 
-				#@description = @name.[0..-1*@alias.size] + `ls -dalh #{@name} 2>/dev/null`
-				@description = @name +" - "+`ls -dalh #{@name} 2>/dev/null`
+				@description=@name+" - "+`ls -dalh #{@name} 2>/dev/null`
 			else
 				@description = whatis.lines.first[23..-1] 
 			end
@@ -73,9 +94,11 @@ class Entry < Item
 	end
 end
 class Directory < Entry
-	def primary; content; end
-	def content #restore=nil
-		#super
+	def initialize path, _alias
+		super path, _alias
+		default "content"
+	end
+	def content 
 		files,directories = [],[] #@entries = { right: [], down: [] }
 		`file -i #{@name}/*`.each_line do |line|
 			#LOG.debug "dir :#{line}"
@@ -89,10 +112,11 @@ end
 
 class Executable < Entry
 	attr_accessor :history
-	def primary; content; end
+	#def open; content; end
 	def initialize path, _alias
 		super path, _alias
 		@history = []
+		default "content"
 	end
 	def content 
 		COMMAND.content.clear
@@ -127,9 +151,12 @@ class Collection < Item
 		@items = items
 		super name
 	end
+	def description; "#{@items.size} entries"; end
 	def content; [@items]; end
 end
 class Container < Collection
+	#attr_accessor :description
+	#def description; "#{@items.size} entries"; end
 	def content
 		result = [] # { right: [], down: [] }
 		
@@ -139,6 +166,7 @@ class Container < Collection
 				result[index] += value }
 #			$stack.content.shift
 		end
+		#@description = "#{@result[1].size} entries"
 		result
 	end
 end
@@ -165,6 +193,7 @@ class Command < Collection
 		end
 		super items, items.join#("")
 	end
+	def description; @items.map(&:name).join ' '; end
 	def add; COMMAND.content = @items; end
 	def content
 		LOG.debug "command #{@items.map(&:name).join ' '}"
@@ -185,6 +214,7 @@ class Option < Item
 		@name, @delimiter, @parameter = /(--?[[:alnum:]]*)([ =]?)(.*)$/.match( outline )[1..3]
 		@description = description#.colored :description
 		super @name, @name[1..-1]
+		default "add"
 	end
 	#def image #long=false#x=nil, y=nil, area
 		#@name[0..9].ljust(10).draw \
@@ -252,15 +282,6 @@ class Section < Item
 		[ @content ]
 	end
 end
-class Text < Item
-#	type = ""
-end
-class Word < Item
-#	def initialize name
-#		super name
-		#@type = " "
-#	end
-end
+class Text < Item; end
+class Word < Item; end
 
-
-	

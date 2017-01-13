@@ -10,22 +10,23 @@ LIMIT = 12
 TERM = "urxvt -hold -e "
 
 F = 1000
-H = 618
 #H = 764
+H = 618
 M = 382
+#L = 382
 L= 236
 VL = 146
 
 COLOR = {	#		R			G			B
 	background:	[[ VL,VL,VL ]],
 
-	red:				[[ H,L,L ],Executable],
-	orange:			[[ H,M,L ],Entry],
+	red:				[[ H,L,L ],Executable,Action],
+	orange:			[[ H,M,L ],Entry,Collection],
 	yellow:			[[ H,H,L ],Directory],
 	green:			[[ L,H,L ],Image,Host],
 	cyan:				[[ L,H,H ],Video,Type],
 	blue:				[[ L,L,H ],Audio,Option,User],
-	magenta:		[[ H,L,H ],Special,Collection],
+	magenta:		[[ H,L,H ],Special,Command],
 
 	dark:				[[ M,M,M ],Item],
 #	grey:				[[ M,M,M ]],
