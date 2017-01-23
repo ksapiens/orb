@@ -18,33 +18,37 @@ L= 236
 VL = 146
 
 COLOR = {	#		R			G			B
-	background:	[[ VL,VL,VL ]],
+	background:	[ VL,VL,VL ],
 
-	red:				[[ H,L,L ],Executable,Action],
-	orange:			[[ H,M,L ],Entry,Collection],
-	yellow:			[[ H,H,L ],Directory],
-	green:			[[ L,H,L ],Image,Host],
-	cyan:				[[ L,H,H ],Video,Type],
-	blue:				[[ L,L,H ],Audio,Option,User],
-	magenta:		[[ H,L,H ],Special,Command],
-
-	dark:				[[ M,M,M ],Item],
-#	grey:				[[ M,M,M ]],
-	bright:			[[ H,H,H ],Section,Text],
-	white:			[[ F,F,F ],Add,Textfile]
-}
-
-TYPE = {
-	item:				'',
-	section:		' ',
-	entry:			'/',
-	host:				':',
-	user:				'@',
-	type:				'?',
-	add:				'+',
-	collection:	'*',
-	command:		'>',
-	option:			'-'
+	red:				[ H,L,L ],
+	orange:			[ H,M,L ],
+	yellow:			[ H,H,L ],
+	green:			[ L,H,L ],
+	cyan:				[ L,H,H ],
+	blue:				[ L,L,H ],
+	magenta:		[ H,L,H ],
 	
+	dark:				[ M,M,M ],
+#	grey:				[ M,M,M ],
+	bright:			[ H,H,H ],
+	white:			[ F,F,F ]
 }
-	
+TYPE ={
+	Type:				['?', :cyan],
+	Item:				['',  :dark],
+	Entry:			['/', :orange],
+	Directory:  ['/', :yellow],
+	Executable: ['/', :red],
+	Image:			['/', :green],
+	Video:			['/', :cyan],
+	Audio:			['/', :blue],
+	Collection: ['*', :green],
+	Container:  ['*', :green],
+	Command:		['>', :magenta],
+	Host:				[':', :green],
+	User:				['@', :blue],
+	Add:				['+', :white],
+	Option:			['-', :blue],
+	Section:		[' ', :bright]
+
+}

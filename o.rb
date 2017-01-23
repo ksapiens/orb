@@ -4,89 +4,92 @@
 # 
 # 	Launcher
 #
-# copyright 2016 kilian reitmayr
+# copyright 2017 kilian reitmayr
+require 'pry'
 
-#$LOAD_PATH 
-$: << __dir__ #"#{File.dirname __FILE__}/."
+$LOAD_PATH  << __dir__ #"#{File.dirname __FILE__}/."
 require 'logger'
-#require 'yaml'
-require 'psych'
-require 'view/terminal'
+require 'sequel'
 require "helpers.rb"
-require "manual.rb"
-require "entities.rb"
-require "writer.rb"
 
-INVOKED = (__FILE__ == $0)
-#eval "config.default".read
-halt if INVOKED and $1 == "-d"
-
-NEXT, PREVIOUS = 1, -1
-LOG = Logger.new("orb.log")
-#$DEBUG = true
 "~/.orb".mkdir unless "~/.orb/".exists?
 "./config.default".copy "~/.orb/config" unless 
 	"~/.orb/config".exists?
 eval "~/.orb/config".read
+LOG = Logger.new("orb.log")
+FIRST = !"~/.orb/db.sqlite".exists? 
+DB = Sequel.sqlite #"~/.orb/db.sqlite".path
+DB.loggers << LOG
+require "initdb.rb"
+require "entities.rb"
+require 'view/terminal'
+require "manual.rb"
+require "writer.rb"
 
-init if INVOKED
+halt unless ($* & [ "-d", "debug" ]).empty?
+LOADED = (__FILE__ != $0)
+NEXT, PREVIOUS = 1, -1
+
+if FIRST
+	for name, values in TYPE
+		Type.create long: name, short: values[0], 
+			color: COLOR.keys.index( values[1] )
+	end
+	
+	Directory.create( long: "/", short: "root" )
+	Directory.create( long: ENV["HOME"], short: "home" )
+	Directory.create( long: ENV["PWD"], short: "work")
+	Container.create( long: "commands" )
+	# (ENV["PATH"].split(":")-["."]).map{ |path| 
+		#Directory.new path, :short }, "commands" ),
+	Collection.create( long: "types", items: Type.all )#( [User,Host,Command] + 
+		#Entry.descendants ).map{|c| Type.find_or_create(c.to_s)}
+end
+
+DEFAULT = [
+]
+
+init unless LOADED
 
 $world,$selection = [],[]
 $focus,$choice,$counter = 2,0,0
 $filter=""
 
-DEFAULT = [
-	Directory.new( "/", "root" ),
-	Directory.new( ENV["HOME"], "home" ),
-	Directory.new( ENV["PWD"], "work"),
-	Container.new( (ENV["PATH"].split(":")-["."]).map{ |path| 
-		Directory.new path, :short }, "commands" ),
-	Collection.new( ( [User,Host,Command] + 
-		Entry.descendants ).map{|c| Type.new(c)}, "types"),
-#	Type.new(User, "people"),
-#	Type.new(Host, "web"),
-#	Type.new(Config, "config"),
-#	Type.new(Command, "history")
-	
-]
-
-$world << (HEAD = Writer.new content:[ User.new, Host.new, 
-	Directory.new(ENV["PWD"],ENV["PWD"][1..-1]) ],
+$world << (HEAD = Writer.new content:[
+	User.new( long: ENV["USER"] ),
+	Host.new( long: (`hostname`.strip or "localhost") ), 
+	Directory.new( long: '.'.path, short: '.'.path[1..-1] )],
 	x: LEFT, y: 0, height:0, delimiter:'', selection:false)
-$world << (COMMAND = Writer.new content:[],
-	prefix: ">",	x: LEFT, y: lines-1, height:0,
-	delimiter:' ', selection:false)
+$world << (COMMAND = Writer.new	prefix: ">", x: LEFT, 
+	y: lines-1, height:0, delimiter:' ', selection:false)
+$world << (STACK = Writer.new content: Item.all, x: LEFT, 
+	delimiter:$/,	selection:true )
 
 # main class
 class ORB #< Window
 	def initialize
-		if "~/.orb/stack".exists?			
-			$stack = Writer.new x: LEFT, file: "~/.orb/stack", 
-				content: Psych.load_file( "~/.orb/stack".path ),
-			  #height:10,y:TOP,
-				delimiter:$/, selection:true#, raw: false
-		else
-			"~/.orb/stack".touch
-			#for shell in %w[ bash zsh ]
-			log = "__LOG\n"
+		if FIRST #"~/.orb/stack".exists?			
+			#log = "__LOG\n"
 			#log += ("~/.zsh_history").read.force_encoding(
 			#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 			#	"~/.zsh_history".exists?
-			log += ("~/.bash_history").read if 
+			log = ("~/.bash_history").read if 
 				"~/.bash_history".exists?
-			#end  
-			$stack = Writer.new( content:log,
-				x: LEFT, selection:true, raw: false,
-				file: "~/.orb/stack", delimiter:$/ )
+			for lines in log.lines
+				for line in lines.split "|"
+					command = Command.new( line )
+					#LOG.debug command
+					STACK << command.items.first if command.items
+				end
+			end
 		end
-		$stack << DEFAULT
-		$world << $stack
+		#$stack << DEFAULT
 		#$help=Writer.new input: "help.txt".read
 		#$world << $help
 	end
 	def help
-		$stack << DEFAULT
-		$world << $help
+		#$stack << DEFAULT
+		#$world << $help
 	end
   def colortest
 		clear
@@ -164,10 +167,10 @@ class ORB #< Window
     end
   end
 begin
-		ORB.new.run if INVOKED
+		ORB.new.run unless LOADED
 end
 ensure
 #	LOG.debug "ensure"
 	use_default_colors()
-  close_screen if INVOKED
+  close_screen unless LOADED
 end

@@ -1,42 +1,90 @@
-multiple column list
-text paging
+class Item  <  Model s/
 
+	id int
+	file string # file last found in 
+	position int # in file
+	identity string id
+	full string #/home/key/rubytextfile.rb
+	short string # "rubytextf*rb"
+	description or whatis / ls / file 
 
-command history
-log parsing
-line remover overview mode
+	entries [] #history / entries / sequence
+
+	
+class Identity < Model
+	
+	name string unique
+	type char
+	shape string
+	
+	color id
+	default id
+	history [] #commands
+	
+class Color
+	
+	name string
+	red int
+	green int
+	blue int
+	
+
+views:
+	list:
+		short : multiple column list, 
+		detail : full name + description
+	text
+		more text: description between line 
+		less text: line remover overview mode
+
+class String 
+	@meanings = []
+	def parse		
+end
+
+class Number < Item
+class Text < Item
+	description string from url / shape
+	
+class Word < Text
+	description string from wordnet
+	class Object < Word
+class Adjective < Word
+class Verb < Word
+class Connector < Word
+
+class Code < Text
+	description from ri / doc
+class Operator < Code
+class Klass < Code
+class Method < Code
+	
+input echo on command line
+add replaces current input
+space parses input
+
 web http parsing
-
-
-	csv persistence
-	horizontal scroll 
+horizontal scroll 
 
 config <- 
 	/etc / 
 	.files )
 	/sys <- system setting 
 
-*executable <-  live process signaling
-									modules <- switch loaded kernel modules
-
-Writer:
-create new stack from parsing of input 
-
+executable
+	live process highlight
+	signal actions
+	modules <- switch loaded kernel modules
 	
 memory <- 
 alias <- .bash/zsh_history parse
-history <- recent / frequent 
 
-aliases
 #video background
 opengl interface
 manual font jpeg generation, #cairo, pango
 rmagick 	
 xlib, window manager
 
-text area: in: file content / command output / host output	
-	
-	generic highlighting
 	semantic deflation
 	orb way editing language + code
 	line skip, increase with quantitiy one page overview

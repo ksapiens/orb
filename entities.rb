@@ -3,49 +3,49 @@
 # 	Items
 #
 # copyright 2016 kilian reitmayr
+require "sequel"
+require "helpers.rb"
 
-class Item #< String
-	class << self; attr_accessor :default; end
-	def self.descendants
-  	ObjectSpace.each_object(Class).select{ |klass| klass < self }
-  end
-
-	attr_reader :name
-	attr_accessor :x, :y, :alias
-	def to_s; @alias ? @alias : @name; end
-	#def to_s; @name; end
-	def length; to_s.length; end
-	def type name=self.class
-		until type = TYPE[name.to_s.downcase.to_sym]
-			name = name.superclass 
-		end;type
-	end			 
-	def color name=self.class
-		until color = COLOR.select{|k,v| 
-			v[1..-1].include? name }.keys.first 
-			name = name.superclass 
-		end;color
-	end			
-	def initialize name='', _alias=nil 
-		@name ||= name#.colored color
-		@alias ||= _alias
-		@actions = %w[ content open add rename ].map{ |name| 
-			Action.new name, self }
+class Item < Sequel::Model
+	plugin :timestamps
+  plugin :single_table_inheritance, :type_id, model_map: 
+  	Hash[ ([nil]+TYPE.keys).each_with_index.entries ].invert	  	  	#key_chooser: proc{|type| TYPE.keys.index type }
+  many_to_one :type, key: :type_id, class: self
+  many_to_many :items, class: self, join_table: :relations, 
+  	left_key: :first_id, right_key: :second_id
+	#def self.descendants
+  #	ObjectSpace.each_object(Class).select{ |klass| klass < self }
+  #end
+	#alias :name :long 
+	#alias :description :extra
+	attr_accessor :x, :y#, :alias
+	def create args
+		i = args.delete( :items ) if args[:items]
+		super args #path.path, short#.gsub /$\//, ''
+		add_items i
 	end
-	def has? variable; instance_variables.include? variable; end 
-	def description;""; end
-	#def primary; content; end
-	#def secondary; list; end
-	def open		
-		return unless default = self.class.default
+	def initialize args #path, 
+		#short="s"#path#.split("/")[-1]
+		args[:type_id] = (TYPE.keys.index self.class.to_s.to_sym) + 1
+		super args #path.path, short#.gsub /$\//, ''
+	end
+		#@actions = %w[ content _open add rename ].map{ |name| 
+		#	Action.new name, self } + type.history
+
+	def to_s; short ? short : long; end
+	def length; to_s.length; end
+	#def has? variable; instance_variables.include? variable; end 
+	def _open		
+		return unless default = type.default
 		default.add
 		self.add
 	end
-	
+	def add_items (objects)
+		objects.each{ |item| add_item item } 
+	end 
 	def content; end
-	#def list;	end	
 	def add; COMMAND.add self; end
-	def rename; @alias = COMMAND.getstr; end
+	def rename; short = COMMAND.getstr; end
 	def action id=KEY_TAB
 		#LOG.debug "action #{id}"
 		case id
@@ -64,7 +64,7 @@ class Item #< String
 	end
 end
 
-class Action < Item
+class Action #< Item
 	def initialize name, item
 		@item = item
 		@name = name
@@ -76,28 +76,26 @@ class Action < Item
 end
 
 class Entry < Item
-	#def primary; open; nil; end
-	def initialize path, _alias=nil#path#.split("/")[-1]
-		_alias = path.split("/")[-1] if _alias == :short
-		super path.path, _alias#.gsub /$\//, ''
-		default "open"
+	def initialize args #path, short=nil#path#.split("/")[-1]
+		args[:short] = args[:long].split("/")[-1] if 
+			args[:short] == :short
+		super args #path.path, short#.gsub /$\//, ''
 	end
-
-	def description
-		@description or begin
+	def extra
+		super or begin
 			if (whatis = `whatis #{@name} 2>/dev/null`).empty? 
-				@description=@name+" - "+`ls -dalh #{@name} 2>/dev/null`
-			else
-				@description = whatis.lines.first[23..-1] 
-			end
+				extra = `ls -dalh #{@name} 2>/dev/null`
+			else 
+				extra = whatis.lines.first[23..-1]; end
+			save
 		end	
 	end
 end
 class Directory < Entry
-	def initialize path, _alias
-		super path, _alias
-		default "content"
-	end
+	#def initialize path, short
+	#	super path, short
+	#	default "content"
+	#end
 	def content 
 		files,directories = [],[] #@entries = { right: [], down: [] }
 		`file -i #{@name}/*`.each_line do |line|
@@ -111,29 +109,29 @@ class Directory < Entry
 end
 
 class Executable < Entry
-	attr_accessor :history
+	alias :history :items
 	#def open; content; end
-	def initialize path, _alias
-		super path, _alias
-		@history = []
-		default "content"
-	end
+	#def initialize path, short
+	#	super path, short
+	#	@history = []
+	#	default "content"
+	#end
 	def content 
 		COMMAND.content.clear
 		COMMAND.add self
-		man = ManPage.new(@name)
+		man = ManPage.new(long)
 		if man.page
-			[[Collection.new( @history, "history" )] +
-				man.options.map{ | outline, description |	
-					Option.new( outline.split(",").last, description) } +
+			[[Collection.new( "history", items )] +
+				man.options.map{ | outline, description |	Option.new( 
+					long: outline.split(",").last, extra: description) } +
 				man.page.map{ |section ,content| 
-					Section.new section, content } ]
-		else [ `COLUMNS=1000 #{name} --help` ];end
+					Section.new long: section, extra: content } ]
+		else [ `COLUMNS=1000 #{long} --help` ];end
 	end 
 end
 
 class Textfile < Entry
-	def content;super;[@name.read];end
+	def content;super;[long.read];end
 end	
 class Video < Entry; end
 class Audio < Entry; end
@@ -146,141 +144,96 @@ class Socketfile < Special; end
 class Chardevice < Special; end
 
 class Collection < Item
-	attr_reader :items
-	def initialize items, name
-		@items = items
-		super name
-	end
-	def description; "#{@items.size} entries"; end
-	def content; [@items]; end
+	def description; "#{items.size} entries"; end
+	def content; [items]; end
 end
 class Container < Collection
-	#attr_accessor :description
-	#def description; "#{@items.size} entries"; end
 	def content
 		result = [] # { right: [], down: [] }
-		
-		for item in @items
+		for item in items
 		  item.content.each_with_index{ |value,index|
 				result[index] ||= []
 				result[index] += value }
-#			$stack.content.shift
 		end
-		#@description = "#{@result[1].size} entries"
 		result
 	end
 end
 class Command < Collection
-	#attr_accessor :sequence
 	def initialize input
-		#@type = ">"
 		case input
 			when String 
 				parts = input.strip.split(/\s(-{1,2}[^-]*)/)
 				return if parts.empty?
 				path = `which "#{ Shellwords.escape parts[0].split[0] }" 2> /dev/null`
 				return if path.empty?
-				items ||= [] 
-				executable = Executable.new(path.strip, :short)				 
-				executable.history << self
-				items << executable
+				executable = Executable.new(long: path.strip,
+					short: :short)				 
+				executable.add_item self
+				add_item executable
 				#command = command[/aliased to (.*)$/]
 				options = parts[1..-1].reject(&:empty?)
-				items << options.map{|part| 
-					Option.new part} unless options.empty?
+			  options.each{ |part| 
+					add_item Option.new(part) } unless options.empty?
 			when Enumerable
-				items = input
+				add_items input
 		end
-		super items, items.join#("")
+		super long: items.join, items: items
 	end
-	def description; @items.map(&:name).join ' '; end
-	def add; COMMAND.content = @items; end
+	def extra; items.map(&:long).join ' '; end
+	def add; COMMAND.content = items; end
 	def content
-		LOG.debug "command #{@items.map(&:name).join ' '}"
-		@items.first.history << self
-		if (object = @items.last).is_a? Entry 
+		LOG.debug "command #{items.map(&:name).join ' '}"
+		items.first.add_item self
+		if (object = items.last).is_a? Entry 
 #			default = @items.[
-			object.class.default ||= Command.new @items[0..-2] 
+			object.type.default ||= Command.new items[0..-2] 
 		end
-		[ `#{@items.map(&:name).join ' '} 2>/dev/null` ]
+		[ `#{items.map(&:long).join ' '} 2>/dev/null` ]
 	end
 end
 
 class Option < Item
-	attr_reader :description
+#	attr_reader :description
 	def initialize outline, description=""
 		#@type = "-"
 		#/(?<name>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
-		@name, @delimiter, @parameter = /(--?[[:alnum:]]*)([ =]?)(.*)$/.match( outline )[1..3]
-		@description = description#.colored :description
-		super @name, @name[1..-1]
-		default "add"
+		long, @delimiter, @parameter = /(--?[[:alnum:]]*)([ =]?)(.*)$/.match( outline )[1..3]
+		extra = description#.colored :description
+		super long, long[1..-1]
+		#default "add"
 	end
-	#def image #long=false#x=nil, y=nil, area
-		#@name[0..9].ljust(10).draw \
-	#	super +	{ description: " " + @description }
-		#(long ?  [" " + @description] : [] )
-	#end
-	def primary; add;	end
-	#def add#content
-	#	COMMAND.add self 
-	#	nil #[]
-	#end	
+	#def primary; add;	end
 end
 
 class User < Item
-	def initialize name=ENV["USER"]
-		super name
-		#@type = "@"
-	end
-	#def content;	end
+#	def initialize name=ENV["USER"]
+#		super name
+#	end
 end
 class Host < Item
-	def initialize name=(`hostname`.strip or "localhost")
-		super name
-		#@type = ":"
-		#@shape = //
+#	def initialize args
+#		args[:name] = (`hostname`.strip or "localhost")
+#		super args
 		#if /\w+\.(?:gg|de|com|org|net)/.match letter
-	end
-	#def content	end
-end
-class Type < Item
-	def initialize klass, name=klass.to_s.downcase
-		super name
-		#@type = "?"
-		@klass = klass
-	end
-	def content
-		[ [ Add.new(@klass) ] + 
-			$stack.content.select{|item| item.is_a? @klass } ]
-	end
+#	end
 end
 class Add < Item
-	def initialize type, name=type.to_s.downcase
-		super name
-		#@type = "+"
-		#@name = name
-	end
-	#def content
-	def primary 
+	def action
 		COMMAND.content = [ Text.new(@name.to_s + " : ") ]
-		item = @klass.new(COMMAND.getstr)
+		item = @name.new(COMMAND.getstr)
 		$stack << item
 		item.content
-		#[]
 	end
 end
-
+class Type < Item
+	alias :symbol :short 
+	def content
+		[ [ Add.new(@name) ] + 
+			$stack.content.select{|item| item.is_a? @name } ]
+	end  
+end
 class Section < Item
-	def initialize name, content
-		#@type = " "
-		@content = content
-		super name
-	end
-	def content #restore
-		#$world.pop
-		[ @content ]
-	end
+	def content; [ extra ];	end
 end
 class Text < Item; end
 class Word < Item; end

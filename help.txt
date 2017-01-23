@@ -1,31 +1,36 @@
- <= all items 
+ <= all files
  <= user directory
  <= current working directory
- <= all commands in PATH
- <= contacts 
- <= host browser
- <= last commands
+ <= all executables 
+ <= all types
     
     O.rb 1.0
 
-    / files
-    ? type
-    @ people
-    : hosts
-    : options
-    + adding
-    > command
-    # tag
-    . config
+                           /files       words      code
+                    red     executables verbs      methods
+    * collection    orange  binary      
+    ? type          yellow	directories objects    classes
+    @ people        green   image       pronouns   operators
+    : hosts         cyan    video                  string
+    - option        blue    audio       adjectives variables
+    + adding        magenta special     number     number
+    > command				white   textfiles              special
+    # tag           rose    executable text
+    . hidden
 		
-    F1	help
-    F12 colors 
+		ctrl-a add
+		ctrl-z toggle long / short in list
+                  less / more  in text
+		ctrl-r rename
+		ctrl-d set default		
+				
+    F1	help    
     ESC exit
 				      
-    keyboard: type in your choice, highlight with , 
-              press TAB to select.
-    mouse : move your pointer over your choice, 
-            click left for default action,
+    keyboard: type in your choice,, 
+              press Tab for default
+              Shift-Tab for actions
+    mouse : left click for default action,
             right for action list
     touch : tap for default, 
             twofinger tap for actions

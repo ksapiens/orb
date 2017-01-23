@@ -17,61 +17,51 @@ class Writer < Pad #Window #
 		@delimiter ||= $/
 		@page ||= 0
 		@content ||= []
+		#@content = Item.all if self == STACK
 		LOG.debug "writer %s %s %s %s" % [@y, @x, @height, @width]
 		#LOG.debug "content : #{@content}" 
 		super 1000,@width
 		#@input = @input.read if @input.is_a? File
-		case @content
-			when String
+#		case @content
+#			when 
 				#fork do 
-					@content = understand @content 
+		@content = understand @content if @content.class == String
 				#end
 			#when Command
 			#	@content = @content.primary			
 			#	@raw = true
 				#@input.entries.map{|line| Text.new line }
-		end
-		
+#		end
 		work 
 	end
 	def understand this#, log=false
 		result = []
-		if this.start_with? "__LOG" #log #@type == :log
-#			@raw = false
-#			@delimiter = $/
-			for lines in this.lines
-				for line in lines.split "|"
-					command = Command.new( line )
-					#LOG.debug command
-					result << command.items.first if command.items
-				end
-			end
-		else
-			@raw = true
-			@delimiter = ""
-		end
-		
+		@raw = true
+		@delimiter = ""
 		begin
 		#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
 		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
 		
 #		shapes = /(?<Host>(\w+:\/\/)?([\w\.-]+\.(?:gg|de|com|org|net))|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})([\w\/]+)*\s)?|\W(?<Entry>(\/\w+)+)/
-			shapes = /\W(?<Entry>(\/[[:alnum:]]+)+)\W/
+			shapes = /\W(?<Entry>\/[[[:alnum:]]\/]+)\W/
 			match = shapes.match this
 			if match 
-		#			LOG.debug match#.post_match
-				text = match.pre_match
+					LOG.debug match#.post_match
+				result << match.pre_match.lines.map{ |line| 
+					Text.new( line ) } if @raw
+				
 				item = match.to_h.select{|k,v| v}
-	#					LOG.debug item#match#.post_match
+						
+				LOG.debug item#match#.post_match
 				result << eval( item.keys.first + #if item
 					".new '#{item.values.first}'" )
+				this = match.post_match			
 			else					
-				text = this #word )
-				
+				Text.new( this ) #word )
 			end
-			result << text.lines.map{ |line| Text.new( line ) } if @raw
+			
 			#LOG.debug result#this[0..20]				
-		end while match && this = match.post_match
+		end while match
 		result.flatten #@content = result 
 	end
 	def index; $world.index self; end
@@ -92,14 +82,17 @@ class Writer < Pad #Window #
 	def << (object) 		
 		#LOG.debug " << :#{object}"
 		$world = $world[0..index] if index
-		@content.unshift(object).flatten!
-		@content.uniq! {|item| item.type + item.name }
-		@file.write @content.to_yaml if @file
+		@content.unshift(object) #.flatten!
+		@content.uniq!# {|item| item.long }
+		object.save
+		#@file.write @content.to_yaml if @file
 		work
 	end
 
 	def view 
+		
 		if list?	
+			
 			if paging? and !$filter.empty? and focus?
 			#LOG.debug "#{$filter} > "
 				result = @content.select{|i| 
@@ -119,14 +112,14 @@ class Writer < Pad #Window #
 	def update
 		if @height > 2 #list?
 			common={color: :white,y:stop,x:@width-1,highlight:focus?}
-			draw "v", common 									if pagedown?
+			draw paging? ? "v" : " ", common	if pagedown?
 			draw "^", common.merge( y:start )	if pageup?
-			draw " ", common 							unless paging?
+			#draw " ", common 							unless paging?
 		end
 		refresh start,0, @y, @x, @y+@height, @x+@width#right,bottom
 	end	
 	def work
-		return unless INVOKED
+		return if LOADED
 		clear 
 		setpos start,0
 		draw @prefix if @prefix
@@ -137,14 +130,11 @@ class Writer < Pad #Window #
 		for item in view
 			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury
-			draw item.type, color: :dark unless @raw
+			draw item.type.symbol, color: :dark unless @raw
 			#image=image[0..width-curx-1].colored(image.color)if list?
-			draw item.to_s[0..@width-curx-2], 
-				color: item.color, selection:(@selection and focus?)
-			draw " " + item.description[0..@width-curx-3], 
-				color: :bright, selection:(@selection and focus?) if 
-					#item.has?(:@description) and 
-					@width - curx > LIMIT and list? #@height > 1
+			draw (@short ? item.to_s : item.long)[0..@width-curx-2], 
+				color: item.type.color, selection:(@selection and focus?)
+			draw " " + item.extra[0..@width-curx-3], color: :bright, selection:(@selection and focus?) if item.extra and @short #and list? 
 		end
 		#box '|', '-' 
 		update
@@ -154,6 +144,7 @@ class Writer < Pad #Window #
 		items = view + [" "," "]
 		@width = (items.max{ |a, b| 
 			a.length <=> b.length }.length+2).max LIMIT 
+		@short = true
 		#update
 		#resize @height, LIMIT #unless self == $world.last
 	end
@@ -187,11 +178,11 @@ class Writer < Pad #Window #
 		end
 		LOG.debug "target :#{target}" 
 		#target = @content[-1] unless target
-		$stack << target unless 
-			[Add, Option, Section, Text, Action, Collection
-				].include? target.class 
+		#$stack << target unless 
+		#	[Add, Option, Section, Text, Action, Collection
+		#		].include? target.class 
 		return unless results = target.action( id )
-		$world=$world[0..2]		
+		$world=$world[0..index]		
 		$filter.clear
 		for result in results
 			next if result.empty?		

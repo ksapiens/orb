@@ -4,53 +4,64 @@
 #require 'rubygems'
 require 'sequel'
 require 'logger'
-require 'shellwords'
-require 'digest/md5.so'
+#require 'shellwords'
+#require 'digest/md5.so'
 #require 'profile'
 #THREADS = 4
 
-DB = Sequel.sqlite 'db.sqlite'
+DB = Sequel.sqlite 'default.sqlite'
 #DB.loggers << Logger.new("tagger.log")
 DBLOG = Logger.new("db.log")
 
-DB.create_table( :types ) do 
+DB.create_table( :types ) do #identity meaning 
   primary_key :id
-  foreign_key :parent_id, :types
-  String :name
+  foreign_key :color_id, :colors
+  foreign_key :item_id, :items
+  String :name, :unique => true 
+  String :shape
+  Char :symbol
+  
   Integer :count
-end unless DB.table_exists? :types
+end #unless DB.table_exists? :types
 
-DB.create_table( :tags ) do 
+DB.create_table( :colors ) do 
   primary_key :id
   #foreign_key :field_id
-  Symbol :name
-  Integer :count
-end unless DB.table_exists? :tags
+  String :name
+  Integer :red
+  Integer :green
+  Integer :blue  
+end #unless DB.table_exists? :
 
-DB.create_table( :items ) do
+DB.create_table( :items ) do #string object word 
   primary_key :id
-  foreign_key :parent_id, :items
+  #foreign_key :entries_id, :items
   #foreign_key :mime_id, :mimes #, :size => 12
 	foreign_key :type_id, :types
-  String :path, :unique => true 
-  String :md5, :size => 32 
-  Integer :size
+  String :long, :unique => true 
+  String :short
+  String :extra
+  #String :md5, :size => 32 
+  String :found_in #file
+  Integer :position
+  #Integer :size
   TrueClass :executable
-end unless DB.table_exists? :items
+end #unless DB.table_exists? :items
  
-DB.create_table( :taggings ) do
+DB.create_table( :relations ) do
   primary_key :id
 #  foreign_key :supported_id, :tags#, :on_delete => :cascade
 #  foreign_key :available_id, :tags#, :on_delete => :cascade
-  foreign_key :tag_id, :tags#, :on_delete => :cascade
-  foreign_key :item_id, :items#, :on_delete => :cascade
-end unless DB.table_exists? :taggings
+  foreign_key :first_id, :items#, :on_delete => :cascade
+  foreign_key :second_id, :items#, :on_delete => :cascade
+end #unless DB.table_exists? :taggings
 
 class Item < Sequel::Model
   #many_to_one :parent, :class => self
-	plugin :tree
+	#plugin :tree
   many_to_one :type
-  many_to_many :tags
+  many_to_many :entries, class: :items 
+  many_to_many :history, class: :items 
 	
 	#one_to_many :directories, :class => self, :key=>:parent_id, :graph_conditions => { :type => Type[:name=>"directory"] }
 	
@@ -66,12 +77,13 @@ class Item < Sequel::Model
     self.where( tags.map{|t| Sequel.like((t[0]=="#" ? :mimetype : :path), "%"+t.delete("#")+"%") } )
   end
 end
-class Tag < Sequel::Model
-  many_to_many :items
+class Color < Sequel::Model
+  one_to_many :types
 end
 class Type < Sequel::Model
   one_to_many :items
-  many_to_one :parent, :class => self
+  many_to_one :color
+  many_to_one :default, class: :items #parent, :class => self
 end
 
 class DataBase#DBManager
