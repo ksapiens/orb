@@ -35,7 +35,8 @@ require 'sequel'
 DB.create_table( :items ) do #string object word 
   primary_key :id
 	#foreign_key :identity_id#, :types
-  Integer :type_id
+  #Integer 
+  String :type#_id
   String :long#, :unique => true 
   String :short
   String :extra
@@ -45,7 +46,7 @@ DB.create_table( :items ) do #string object word
   #Integer :position
   #Integer :size
   TrueClass :executable
-  DateTime :created_at
+  #DateTime :created_at
   DateTime :updated_at
   
 end #unless DB.table_exists? :items

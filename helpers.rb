@@ -48,7 +48,7 @@ class String
 	def read; file.read; end
 	def write content; f=file("w");f.write content;f.close; end
 	def copy target; FileUtils.copy path, target.path; end
-	def path; gsub /^~/, ENV["HOME"]; gsub /^./, ENV["PWD"]; end	
+	def path; gsub(/^~/, ENV["HOME"]).gsub(/^\./, ENV["PWD"]); end	
 	def item; Item.new self;end
 	def entry
 		return if self[/cannot open/] || 

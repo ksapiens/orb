@@ -31,10 +31,22 @@ LOADED = (__FILE__ != $0)
 NEXT, PREVIOUS = 1, -1
 
 if FIRST
-	for name, values in TYPE
-		Type.create long: name, short: values[0], 
-			color: COLOR.keys.index( values[1] )
-	end
+#	for name, values in TYPE
+#		Type.create long: name, short: values[0], 
+#			color: COLOR.keys.index( values[1] )
+#	end
+	#log = "__LOG\n"
+	#log += ("~/.zsh_history").read.force_encoding(
+	#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
+	#	"~/.zsh_history".exists?
+	log = ("~/.bash_history").read if "~/.bash_history".exists?
+	for line in log.lines
+		for cmd in line.split "|"
+			command = Command.create( cmd )
+			#LOG.debug command
+			#STACK << command.items.first if command.items
+		end
+	end if log
 	
 	Directory.create( long: "/", short: "root" )
 	Directory.create( long: ENV["HOME"], short: "home" )
@@ -42,7 +54,7 @@ if FIRST
 	Container.create( long: "commands" )
 	# (ENV["PATH"].split(":")-["."]).map{ |path| 
 		#Directory.new path, :short }, "commands" ),
-	Collection.create( long: "types", items: Type.all )#( [User,Host,Command] + 
+	Collection.create( long: "types")#, items: Type.all )#( [User,Host,Command] + 
 		#Entry.descendants ).map{|c| Type.find_or_create(c.to_s)}
 end
 
@@ -69,19 +81,7 @@ $world << (STACK = Writer.new content: Item.all, x: LEFT,
 class ORB #< Window
 	def initialize
 		if FIRST #"~/.orb/stack".exists?			
-			#log = "__LOG\n"
-			#log += ("~/.zsh_history").read.force_encoding(
-			#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
-			#	"~/.zsh_history".exists?
-			log = ("~/.bash_history").read if 
-				"~/.bash_history".exists?
-			for lines in log.lines
-				for line in lines.split "|"
-					command = Command.new( line )
-					#LOG.debug command
-					STACK << command.items.first if command.items
-				end
-			end
+			
 		end
 		#$stack << DEFAULT
 		#$help=Writer.new input: "help.txt".read

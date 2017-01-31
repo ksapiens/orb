@@ -130,11 +130,12 @@ class Writer < Pad #Window #
 		for item in view
 			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury
-			draw item.type.symbol, color: :dark unless @raw
+			draw item.class.symbol, color: :dark unless @raw
 			#image=image[0..width-curx-1].colored(image.color)if list?
 			draw (@short ? item.to_s : item.long)[0..@width-curx-2], 
-				color: item.type.color, selection:(@selection and focus?)
-			draw " " + item.extra[0..@width-curx-3], color: :bright, selection:(@selection and focus?) if item.extra and @short #and list? 
+				color: item.class.color, selection:(@selection and focus?)
+			draw " " + item.extra[0..@width-curx-3], color: :bright, 
+				selection:(@selection and focus?) if item.extra and @short 
 		end
 		#box '|', '-' 
 		update
