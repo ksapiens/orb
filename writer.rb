@@ -37,7 +37,7 @@ class Writer < Pad #Window #
 	def understand this#, log=false
 		result = []
 		@raw = true
-		@delimiter = ""
+		@delimiter = nil #""
 		begin
 		#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
 		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
@@ -48,16 +48,16 @@ class Writer < Pad #Window #
 			if match 
 					LOG.debug match#.post_match
 				result << match.pre_match.lines.map{ |line| 
-					Text.new( line ) } if @raw
-				
+					Text.new( long:line ) } #if @raw
+
 				item = match.to_h.select{|k,v| v}
 						
 				LOG.debug item#match#.post_match
 				result << eval( item.keys.first + #if item
-					".new '#{item.values.first}'" )
+					".new long:'#{item.values.first}'" )
 				this = match.post_match			
 			else					
-				Text.new( this ) #word )
+				result << Text.new( long:this ) #word )
 			end
 			
 			#LOG.debug result#this[0..20]				
@@ -134,8 +134,8 @@ class Writer < Pad #Window #
 			#image=image[0..width-curx-1].colored(image.color)if list?
 			draw (@short ? item.to_s : item.long)[0..@width-curx-2], 
 				color: item.class.color, selection:(@selection and focus?)
-			draw " " + item.extra[0..@width-curx-3], color: :bright, 
-				selection:(@selection and focus?) if item.extra and @short 
+			draw " "+item.description[0..@width-curx-3],color: :bright,
+				selection:(@selection and focus?) if list? and !@short #or @raw #or !item.extra
 		end
 		#box '|', '-' 
 		update

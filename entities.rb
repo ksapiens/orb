@@ -11,29 +11,31 @@ class Item < Sequel::Model
 	self.symbol = ""
 	self.color = :white
 	plugin :timestamps
-  plugin :single_table_inheritance, :type#_id, model_map: 
+  plugin :single_table_inheritance, :type#_id#, model_map: 
   #	Hash[ ([nil]+TYPE.keys).each_with_index.entries ].invert	  	  	#key_chooser: proc{|type| TYPE.keys.index type }
  # many_to_one :type, key: :type_id, class: self
   many_to_many :items, class: self, join_table: :relations, left_key: :first_id, right_key: :second_id
 	#def self.descendants
   #	ObjectSpace.each_object(Class).select{ |klass| klass < self }
   #end
-	#alias :name :long 
-	#alias :type :class
-	attr_accessor :x, :y#, :alias
+  alias :history :items 
+	attr_accessor :x, :y
 	def self.create args
-		items = args.delete( :items ) if args[:items]
-		item = super args
-		item.add_items items if items
-		item
-		#path.path, short#.gsub /$\//, ''
+		super args
+		@items.each{ |item| add_item item } if @items
 	end
-	def add_items (objects)
-		objects.each{ |item| add_item item } 
-	end 
-#	def initialize name
-#		@long = name
-#	end
+	def initialize args
+		@items = args.delete( :items ) if args[:items]
+		super args
+	end
+#	def save
+		#item.add_items items if items
+		#item
+		#path.path, short#.gsub /$\//, ''
+	#end
+	#def add_items (objects)
+#		super
+#	end 
 	def length; to_s.length; end
 	def content; end
 	def add; COMMAND.add self; end
@@ -41,13 +43,23 @@ class Item < Sequel::Model
 		#LOG.debug "action #{id}"
 		case id
 			when KEY_TAB, KEY_MOUSE
-				eval @actions.first.to_s #primary				
+				eval actions.first.to_s #primary				
 			when KEY_SHIFT_TAB
-				[ @actions ] #list #secondary
+				[ actions ] #list #secondary
 			when KEY_CTRL_A
 				add
 			when KEY_CTRL_R
 				rename
+		end
+	end
+	def type
+		Type.find_or_create long:super #type_id #
+	end
+	
+	def actions
+		@actions or begin
+			@actions = %w[ content _open add rename ].map{ |name| 
+				Action.new name, self } + type.history
 		end
 	end
 	def to_s; short ? short : long; end
@@ -56,8 +68,7 @@ class Item < Sequel::Model
 		#args[:type_id] = (TYPE.keys.index self.class.to_s.to_sym) + 1
 	#	super args #path.path, short#.gsub /$\//, ''
 	#end
-		#@actions = %w[ content _open add rename ].map{ |name| 
-		#	Action.new name, self } + type.history
+		
 	#def has? variable; instance_variables.include? variable; end 
 	def _open		
 		return unless command = self.default
@@ -67,6 +78,9 @@ class Item < Sequel::Model
 	def rename; short = COMMAND.getstr; save; end
 	def default action
 		@actions.unshift(Action.new action, self).uniq!
+	end
+	def description
+		extra or ""
 	end
 end
 class Type < Item
@@ -82,8 +96,13 @@ end
 class Action < Item
 	self.color = :red
 	self.symbol = "!"
+	def initialize name, item
+		@name = name
+		@item = item
+		super long:name
+	end
 	def action id=nil 
-		#@item.instance_eval @name
+		@item.instance_eval @name
 	end
 end
 class Add < Item
@@ -111,13 +130,14 @@ class Entry < Item
 			args[:short] == :short
 		super args #path.path, short#.gsub /$\//, ''
 	end
-	def extra
-		super or begin
-			if (whatis = `whatis #{@name} 2>/dev/null`).empty? 
-				extra = `ls -dalh #{@name} 2>/dev/null`
-			else 
-				extra = whatis.lines.first[23..-1]; end
+	def description #extra
+		extra or begin
+#			if (whatis = `whatis #{@name} 2>/dev/null`).empty? 
+			extra = `ls -dalh #{@name} 2>/dev/null`
+#			else 
+#				extra = whatis.lines.first[23..-1]; end
 			save
+			extra
 		end	
 	end
 end
@@ -140,7 +160,7 @@ class Directory < Entry
 end
 
 class Executable < Entry
-	alias :history :items
+	
 	self.color = :red
 	#def open; content; end
 	#def initialize path, short
@@ -151,14 +171,26 @@ class Executable < Entry
 	def content 
 		COMMAND.content.clear
 		COMMAND.add self
-		man = ManPage.new(long)
-		if man.page
-			[[Collection.new( "history", items )] +
-				man.options.map{ | outline, description |	Option.new( 
-					long: outline.split(",").last, extra: description) } +
-				man.page.map{ |section ,content| 
-					Section.new long: section, extra: content } ]
-		else [ `COLUMNS=1000 #{long} --help` ];end
+		#man = ManPage.new(long)
+		#if man.page
+		#	[[Collection.new( long:"history", items:@items )] +
+		#		man.options.map{ | outline, description |	Option.new( 
+		#			long: outline.split(",").last, extra: description) } +
+		#		man.page.map{ |section ,content| 
+		#			Section.new long: section, extra: content } ]
+		#else [ `COLUMNS=1000 #{long} --help` ];end
+		[ `COLUMNS=1000 #{long} --help` ]
+	end
+	def description #extra
+		extra or begin
+			if (whatis = `whatis #{long} 2>/dev/null`).empty? 
+				super
+			else 
+				extra = whatis.lines.first[23..-1]
+			end
+			save
+			extra
+		end	
 	end 
 end
 
