@@ -14,19 +14,19 @@
     : hosts         cyan    video                  string
     - option        blue    audio       adjectives variables
     + adding        magenta special     number     number
-    > command				white   textfiles              special
+    > command       white   textfiles              special
     # tag           rose    executable text
     . hidden
-		
-		ctrl-a add
-		ctrl-z toggle long / short in list
+
+    ctrl-a add
+    ctrl-z toggle long / short in list
                   less / more  in text
-		ctrl-r rename
-		ctrl-d set default		
-				
-    F1	help    
+    ctrl-r rename
+    ctrl-d set default
+
+    F1	help
     ESC exit
-				      
+
     keyboard: type in your choice,, 
               press Tab for default
               Shift-Tab for actions
@@ -34,4 +34,3 @@
             right for action list
     touch : tap for default, 
             twofinger tap for actions
-    

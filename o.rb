@@ -50,6 +50,7 @@ LOADED = (__FILE__ != $0)
 NEXT, PREVIOUS = 1, -1
 
 if FIRST
+	#fork do
 	DB.transaction do
 		TYPE.each{ |type,var| Type.create long:type, short:var.first,
 			color:var[1], extra:var.last }
@@ -61,17 +62,18 @@ if FIRST
 			(ENV["PATH"].split(":")-["."]).map{ |path| 
 				Directory.new( long: path, short: :name ) } )
 		#Item.descendants.each{ |name|	Type.create long: name }
-		Collection.create( long: "types", items: Type.all )
+		#Collection.create( long: "types", items: Type.all )
 		#log = "__LOG\n"
 		#log += ("~/.zsh_history").read.force_encoding(
 		#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 		#	"~/.zsh_history".exists?
 		log = ("~/.bash_history").read if "~/.bash_history".exists?
 		for line in log.lines
-			line.split("|").each{ |cmd| Command.build( cmd ) }
+			line.strip.split("|").each{ |cmd| 
+				Command.build( cmd ) } unless line.strip.empty?
 		end if log
 	end
-
+	#end
 end
 
 DEFAULT = [

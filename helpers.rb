@@ -13,10 +13,6 @@ def halt
 	binding.pry 
 end
 
-#def cont
-#	init_screen
-#end
-
 module Generic
 	def parse args, local = false
 		for key, value in args
@@ -51,8 +47,8 @@ class String
 	def path; gsub(/^~/, ENV["HOME"]).gsub(/^\./, ENV["PWD"]); end	
 	def item; Item.new self;end
 	def entry
-		return if self[/cannot open/] || 
-			self[/no read permission/] || self.empty?
+		return if self[/cannot open/] or 
+			self[/no read permission/] or self.empty?
 		#LOG.debug self
 		if types = /:\s*([\w-]+)\/([\w-]+)/.match(self)
     	type=((%w{directory text audio video image symlink socket chardevice fifo} & 
@@ -61,29 +57,43 @@ class String
     	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
     	#type = "config" 
     	type += "file" if type == "text" 
-    	(eval type.capitalize).new Shellwords.escape(path), :short
+    	(eval type.capitalize).new long:Shellwords.escape(path), short: :name
     end
   end
   
-  def parse
+  def parse raw=true
   	result = []
-  	if start_with? '-'
-			result << Option.find_or_create(long:self)
-		elsif start_with? '/'
-			result << Entry.find_or_create(long:self)
-		else
-			result << Text.find_or_create(long:self)
-		end
-		result.first
+  	#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
+		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
+		
+#		shapes = /(?<Host>(\w+:\/\/)?([\w\.-]+\.(?:gg|de|com|org|net))|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})([\w\/]+)*\s)?|\W(?<Entry>(\/\w+)+)/
+		#shapes = /(((http|ftp|https):\/{2})+(([0-9a-z_-]+\.)+(aero|asia|biz|cat|com|coop|edu|gov|info|int|jobs|mil|mobi|museum|name|net|org|pro|tel|travel|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cu|cv|cx|cy|cz|cz|de|dj|dk|dm|do|dz|ec|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mn|mn|mo|mp|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|nom|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ra|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sj|sk|sl|sm|sn|so|sr|st|su|sv|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw|arpa)(:[0-9]+)?((\/([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?))\b/imuS
+		#shapes = /@^(https?|ftp)://[^\s/$.?#].[^\s]*$@iS/
+		this = self
+		begin
+			shapes = /(?<Option>--?[\w-]*)|(?<Entry>\/[[[:alnum:]]\/]+)/
+			match = shapes.match this
+			if match 
+				#LOG.debug match#.post_match
+				before = match.pre_match#.strip
+				result << Text.new( long:before ) if 
+					raw and not before.empty? 
+				type, string = *match.to_h.select{|k,v|v}.first
+				if type == "Entry" 
+					result << ( `file -i #{string}`.entry or 
+						Entry.new(long:string) )
+				else
+					result << (eval type).new( long: Shellwords.escape(
+						string) ) 
+				end 
+				this = match.post_match			
+			else					
+				result << Text.new( long:this) if raw and not this.empty? 
+			end
+		end while match
+		result.flatten 
 	end
-	
 end
-
-#class String
-#	def [] args
-#		super[args].colored @color
-#	end
-#end
 		
 class Fixnum
 	def cycle direction, min, max
@@ -94,7 +104,6 @@ class Fixnum
 		copy = max if copy < min
 		LOG.debug "#{self} to #{copy}"
 		copy
-
 		#cycle direction unless $world[copy].paging?
 	end
 #		return min if copy < min
@@ -110,11 +119,5 @@ end
 
 class MatchData
 	def to_h; Hash[ names.zip captures ];	end
-end
-
-class Hash
-#	def method_missing *args
-#		self[args.first.to_sym] || super
-#	end
 end
 

@@ -14,57 +14,18 @@ class Writer < Pad #Window #
 		@y ||= TOP
 		@width ||= (cols-@x)
 		@height ||= lines - TOP - BOTTOM - 2
-		@delimiter ||= $/
+		
 		@page ||= 0
 		@content ||= []
-		#@content = Item.all if self == STACK
+		@raw = @content.class == String
+		@delimiter ||= $/ unless @raw
 		LOG.debug "writer %s %s %s %s" % [@y, @x, @height, @width]
-		#LOG.debug "content : #{@content}" 
 		super 1000,@width
 		#@input = @input.read if @input.is_a? File
-#		case @content
-#			when 
-				#fork do 
-		@content = understand @content if @content.class == String
-				#end
-			#when Command
-			#	@content = @content.primary			
-			#	@raw = true
-				#@input.entries.map{|line| Text.new line }
-#		end
+		#fork do 
+		@content = @content.parse if @raw
+		#end
 		work 
-	end
-	def understand this#, log=false
-		result = []
-		@raw = true
-		@delimiter = nil #""
-		begin
-		#shapes = /(?<Host>(\w+:\/\/)?(\S+\.)*(\S+\.(?:gg|de|com|org|net))(\S+)*\s)|(?<Entry>\W(\/\w+)+)|(?<Host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
-		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
-		
-#		shapes = /(?<Host>(\w+:\/\/)?([\w\.-]+\.(?:gg|de|com|org|net))|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})([\w\/]+)*\s)?|\W(?<Entry>(\/\w+)+)/
-		#shapes = /(((http|ftp|https):\/{2})+(([0-9a-z_-]+\.)+(aero|asia|biz|cat|com|coop|edu|gov|info|int|jobs|mil|mobi|museum|name|net|org|pro|tel|travel|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cu|cv|cx|cy|cz|cz|de|dj|dk|dm|do|dz|ec|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mn|mn|mo|mp|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|nom|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ra|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sj|sk|sl|sm|sn|so|sr|st|su|sv|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw|arpa)(:[0-9]+)?((\/([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?))\b/imuS
-			#shapes = /@^(https?|ftp)://[^\s/$.?#].[^\s]*$@iS/
-			shapes = /(?<Option>--?[\w-]*)|(\W(?<Entry>\/[[[:alnum:]]\/]+)\W)/
-			match = shapes.match this
-			if match 
-					LOG.debug match#.post_match
-				result << match.pre_match.lines.map{ |line| 
-					Text.new( long:line ) } #if @raw
-
-				item = match.to_h.select{|k,v| v}
-						
-				LOG.debug item#match#.post_match
-				result << eval( item.keys.first + #if item
-					".new long:'#{item.values.first}'" )
-				this = match.post_match			
-			else					
-				result << Text.new( long:this ) #word )
-			end
-			
-			#LOG.debug result#this[0..20]				
-		end while match
-		result.flatten #@content = result 
 	end
 	def index; $world.index self; end
 	def focus?; $focus == index; end
@@ -80,21 +41,17 @@ class Writer < Pad #Window #
 		@page += direction if (direction==NEXT ? pagedown? : pageup?)
 		work
 	end
-	def add (item);	@content << item;work; end
-	def << (object) 		
-		#LOG.debug " << :#{object}"
+	def add item;	@content << item;work; end
+	def << (item) 		
+		#LOG.debug " << :#{item}"
 		$world = $world[0..index] if index
-		@content.unshift(object) #.flatten!
+		@content.unshift(item) #.flatten!
 		@content.uniq!# {|item| item.long }
-		object.save
-		#@file.write @content.to_yaml if @file
+		item.save
 		work
 	end
-
 	def view 
-		
 		if list?	
-			
 			if paging? and !$filter.empty? and focus?
 			#LOG.debug "#{$filter} > "
 				result = @content.select{|i| 
@@ -107,7 +64,6 @@ class Writer < Pad #Window #
 			return result[start..stop] 
 		end
 		@content	
-		#end
 	end	
 	def start; @page*@height;end
 	def stop; (@page+1)*@height;end
@@ -132,12 +88,12 @@ class Writer < Pad #Window #
 		for item in view
 			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury
-			draw item.type.symbol, color: :dark unless @raw
-			#image=image[0..width-curx-1].colored(image.color)if list?
-			draw item.to_s[0..eol], color: item.color,
+			draw item.class.type.symbol, color: :dark unless @raw
+			draw item.to_s[0..(list? ? eol : -1)], color: item.color,
 				selection:(@selection and focus?)
-			draw (" "+item.description)[0..eol],color: :bright,
-				selection:(@selection and focus?) if list? and !@short #or @raw #or !item.extra
+			draw (" "+item.description)[0..(list? ? eol : -1)],
+				color: :bright,selection:(@selection and focus?) if 
+					list? and not @short 
 		end
 		#box '|', '-' 
 		update
@@ -157,7 +113,7 @@ class Writer < Pad #Window #
 		if self == COMMAND
 			return if @content.empty?
 			#LOG.debug "command :#{@content}"
-			target = Command.create(long: @content.join, items: @content) 
+			target = Command.find_or_create(long: @content.join, items: @content) 
 		elsif y==bottom-1 and x == width-1 and pagedown?
 			page NEXT; return
 		elsif y==0 and x == width-1 and pageup?
@@ -183,11 +139,11 @@ class Writer < Pad #Window #
 		end
 		LOG.debug "target :#{target}" 
 		#target = @content[-1] unless target
-		#$stack << target unless 
-		#	[Add, Option, Section, Text, Action, Collection
-		#		].include? target.class 
+		STACK << target unless 
+			[Add, Option, Text, Action#, Collection
+				].include? target.class 
 		return unless results = target.action( id )
-		$world=$world[0..index]		
+		$world=$world[0..2]#index]		
 		$filter.clear
 		for result in results
 			next if result.empty?		
@@ -197,6 +153,6 @@ class Writer < Pad #Window #
 				#x:$world.last.right+MARGIN+2,
 				content: result, selection:true	) 
 		end
-		$focus = index + 1
+		$focus = 2 #index + 1
 	end
 end
