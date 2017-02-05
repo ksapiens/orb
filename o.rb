@@ -5,9 +5,8 @@
 # 	Launcher
 #
 # copyright 2017 kilian reitmayr
-require 'pry'
-
 $LOAD_PATH  << __dir__ #"#{File.dirname __FILE__}/."
+require 'pry'
 require 'logger'
 require 'sequel'
 require "helpers.rb"
@@ -19,8 +18,28 @@ eval "~/.orb/config".read
 LOG = Logger.new("orb.log")
 FIRST = !"~/.orb/db.sqlite".exists? 
 DB = Sequel.sqlite "~/.orb/db.sqlite".path
-DB.loggers << LOG
+#DB.loggers << LOG
 
+if FIRST	
+	DB.create_table( :items ) do #objects
+  	primary_key :id
+  	Integer :type_id #meaning identity  
+  	String :long #, :unique => true 
+  	String :short
+  	String :extra
+  	String :color #_id, :colors
+  	#String :found_in #file
+  	#Integer :position
+  	#TrueClass :executable
+  	DateTime :time
+	end #unless DB.table_exists? :items
+ 	
+	DB.create_table( :relations ) do
+  	primary_key :id
+  	foreign_key :first_id, :items#, :on_delete => :cascade
+  	foreign_key :second_id, :items#, :on_delete => :cascade
+	end 
+end
 require "entities.rb"
 require 'view/terminal'
 require "manual.rb"
@@ -32,52 +51,37 @@ NEXT, PREVIOUS = 1, -1
 
 if FIRST
 	DB.transaction do
-		DB.create_table( :items ) do #string object word 
-  		primary_key :id
-  		String :type#_id
-  		String :long#, :unique => true 
-  		String :short
-  		String :extra
-  		Integer :color #_id, :colors
-  		#String :found_in #file
-  		#Integer :position
-  		TrueClass :executable
-  		DateTime :updated_at
-		end #unless DB.table_exists? :items
- 		
-		DB.create_table( :relations ) do
-  		primary_key :id
-  		foreign_key :first_id, :items#, :on_delete => :cascade
-  		foreign_key :second_id, :items#, :on_delete => :cascade
-		end 
-		#	for name, values in TYPE
-		#		Type.create long: name, short: values[0], 
-		#			color: COLOR.keys.index( values[1] )
-		#	end
+		TYPE.each{ |type,var| Type.create long:type, short:var.first,
+			color:var[1], extra:var.last }
+		Textfile.create( long: "./help.txt".path, short: "help", 
+			extra: "click here or type 'help' and press TAB" )
+		Directory.create( long: "/", short: "root" )
+		Directory.create( long: ENV["HOME"], short: "home" )
+		Container.create( long: "commands", items: 
+			(ENV["PATH"].split(":")-["."]).map{ |path| 
+				Directory.new( long: path, short: :name ) } )
+		#Item.descendants.each{ |name|	Type.create long: name }
+		Collection.create( long: "types", items: Type.all )
 		#log = "__LOG\n"
 		#log += ("~/.zsh_history").read.force_encoding(
 		#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 		#	"~/.zsh_history".exists?
 		log = ("~/.bash_history").read if "~/.bash_history".exists?
 		for line in log.lines
-			for cmd in line.split "|"
-				command = Command.create( cmd )
-				#LOG.debug command
-				#STACK << command.items.first if command.items
-			end
+			line.split("|").each{ |cmd| Command.build( cmd ) }
 		end if log
 	end
+
 end
 
 DEFAULT = [
-	Directory.find_or_create( long: "/", short: "root" ),
-	Directory.find_or_create( long: ENV["HOME"], short: "home" ),
-	Directory.find_or_create( long: ENV["PWD"], short: "work"),
-	Container.new( long: "commands" ),
-	# (ENV["PATH"].split(":")-["."]).map{ |path| 
-		#Directory.new path, :short }, "commands" ),
-	Collection.new( long: "types")#, items: Type.all )#( [User,Host,Command] + 
-		#Entry.descendants ).map{|c| Type.find_or_create(c.to_s)}
+	Textfile[ short: "help" ],
+	Directory[ short: "root" ],
+	Directory[ short: "home" ],
+	Directory.new( long: '.'.path, short: "current"),
+	Container[ long: "commands" ],
+	#Collection[ long: "types" ]
+	Type[ long: "Type" ]
 ]
 
 init unless LOADED
@@ -86,30 +90,24 @@ $world,$selection = [],[]
 $focus,$choice,$counter = 2,0,0
 $filter=""
 
-$world << (HEAD = Writer.new content:[
-	User.new( long: ENV["USER"] ),
-	Host.new( long: (`hostname`.strip or "localhost") ), 
-	Directory.new( long: '.'.path, short: '.'.path[1..-1] )],
-	x: LEFT, y: 0, height:0, delimiter:'', selection:false)
-$world << (COMMAND = Writer.new	prefix: ">", x: LEFT, 
-	y: lines-1, height:0, delimiter:' ', selection:false)
-$world << (STACK = Writer.new content: Item.all, x: LEFT, 
-	delimiter:$/,	selection:true )
+$world = [ 
+	(HEAD = Writer.new content:[
+		User.new( long: ENV["USER"] ),
+		Host.new( long: (`hostname`.strip or "localhost") ), 
+		Directory.new( long: '.'.path, short: '.'.path[1..-1] )],
+		x: LEFT, y: 0, height:0, delimiter:'', selection:false),
+	(COMMAND = Writer.new	prefix: ">", x: LEFT, 
+		y: lines-1, height:0, delimiter:' ', selection:false),
+	(STACK = Writer.new content: 
+		DEFAULT + Item.order(:time).reverse.all, 
+	 	x: LEFT, delimiter:$/,	selection:true ) ]
 
 # main class
 class ORB #< Window
-	def initialize
-		if FIRST #"~/.orb/stack".exists?			
-			
-		end
+	#def help
 		#$stack << DEFAULT
-		#$help=Writer.new input: "help.txt".read
-		#$world << $help
-	end
-	def help
-		#$stack << DEFAULT
-		#$world << $help
-	end
+	#	$world << Writer.new content: "help.txt".read
+	#end
   def colortest
 		clear
 		COLOR.each_with_index do |color,i|
@@ -123,12 +121,10 @@ class ORB #< Window
 	end
 	def action id, x, y
 		for area in $world
-
 			if 	x.between?( area.left, area.right ) && 
 					y.between?( area.top, area.bottom )
-				#LOG.debug area.inspect
-				#LOG.debug "x: %s y: %s" % [x, y]
 				
+				#LOG.debug "e: %s b: %s" % [mouse.eid, mouse.bstate ]
 				area.action id, x - area.left, y - area.top
 				break
 			end
@@ -138,15 +134,14 @@ class ORB #< Window
 		loop do
 #			$world[$focus].work
  			$counter = 0
-# 			$world.each( &:update )
+#			$world.each( &:update )
  			$world.each( &:work )
-    	#halt
     	input = getch #Event.poll 
 			LOG.debug "input :#{input}"
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
-    			action input, mouse.x, mouse.y
+    			action mouse.bstate, mouse.x, mouse.y
 				when KEY_ESC || KEY_EXIT
         	exit
 				when KEY_F12

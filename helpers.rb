@@ -9,7 +9,7 @@ require 'shellwords'
 require 'pry'
 
 def halt
-	close_screen
+#	close_screen
 	binding.pry 
 end
 
@@ -28,7 +28,7 @@ module Generic
 end
 
 class String
-	attr_accessor :color
+#	attr_accessor :color
 #	def initialize string, color
 #		super string
 #		@color = color
@@ -64,6 +64,19 @@ class String
     	(eval type.capitalize).new Shellwords.escape(path), :short
     end
   end
+  
+  def parse
+  	result = []
+  	if start_with? '-'
+			result << Option.find_or_create(long:self)
+		elsif start_with? '/'
+			result << Entry.find_or_create(long:self)
+		else
+			result << Text.find_or_create(long:self)
+		end
+		result.first
+	end
+	
 end
 
 #class String

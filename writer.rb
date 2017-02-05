@@ -43,7 +43,9 @@ class Writer < Pad #Window #
 		#shapes = /((?<Protocol>\w+:\/\/)?(?<Subdomain>\w+\.)*(?<Domain>\w+\.(?:gg|de|com|org|net))[w\/\.]+)*\s)|()/
 		
 #		shapes = /(?<Host>(\w+:\/\/)?([\w\.-]+\.(?:gg|de|com|org|net))|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})([\w\/]+)*\s)?|\W(?<Entry>(\/\w+)+)/
-			shapes = /\W(?<Entry>\/[[[:alnum:]]\/]+)\W/
+		#shapes = /(((http|ftp|https):\/{2})+(([0-9a-z_-]+\.)+(aero|asia|biz|cat|com|coop|edu|gov|info|int|jobs|mil|mobi|museum|name|net|org|pro|tel|travel|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cu|cv|cx|cy|cz|cz|de|dj|dk|dm|do|dz|ec|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mn|mn|mo|mp|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|nom|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ra|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sj|sk|sl|sm|sn|so|sr|st|su|sv|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw|arpa)(:[0-9]+)?((\/([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?))\b/imuS
+			#shapes = /@^(https?|ftp)://[^\s/$.?#].[^\s]*$@iS/
+			shapes = /(?<Option>--?[\w-]*)|(\W(?<Entry>\/[[[:alnum:]]\/]+)\W)/
 			match = shapes.match this
 			if match 
 					LOG.debug match#.post_match
@@ -130,16 +132,17 @@ class Writer < Pad #Window #
 		for item in view
 			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury
-			draw item.class.symbol, color: :dark unless @raw
+			draw item.type.symbol, color: :dark unless @raw
 			#image=image[0..width-curx-1].colored(image.color)if list?
-			draw (@short ? item.to_s : item.long)[0..@width-curx-2], 
-				color: item.class.color, selection:(@selection and focus?)
-			draw " "+item.description[0..@width-curx-3],color: :bright,
+			draw item.to_s[0..eol], color: item.color,
+				selection:(@selection and focus?)
+			draw (" "+item.description)[0..eol],color: :bright,
 				selection:(@selection and focus?) if list? and !@short #or @raw #or !item.extra
 		end
 		#box '|', '-' 
 		update
 	end
+	def eol; @width-curx-2; end
 	def trim
 		clear
 		items = view + [" "," "]
@@ -149,11 +152,12 @@ class Writer < Pad #Window #
 		#update
 		#resize @height, LIMIT #unless self == $world.last
 	end
-	def action id=KEY_TAB, x=0,y=0
+	def action id=KEY_TAB, x=0,y=0 #mouse=nil
+		#x,y = (mouse.x or 0), (mouse.y or 0)
 		if self == COMMAND
 			return if @content.empty?
 			#LOG.debug "command :#{@content}"
-			target = Command.new( @content.dup ) 
+			target = Command.create(long: @content.join, items: @content) 
 		elsif y==bottom-1 and x == width-1 and pagedown?
 			page NEXT; return
 		elsif y==0 and x == width-1 and pageup?
@@ -193,8 +197,6 @@ class Writer < Pad #Window #
 				#x:$world.last.right+MARGIN+2,
 				content: result, selection:true	) 
 		end
-		$focus = 3
-#		$focus=$world.size-1
-		#$focus=$focus.cycle NEXT, 2, $world.size-1					
+		$focus = index + 1
 	end
 end

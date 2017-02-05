@@ -1,33 +1,3 @@
-class Item  <  Model s/
-
-	id int
-	file string # file last found in 
-	position int # in file
-	identity string id
-	full string #/home/key/rubytextfile.rb
-	short string # "rubytextf*rb"
-	description or whatis / ls / file 
-
-	entries [] #history / entries / sequence
-
-	
-class Identity < Model
-	
-	name string unique
-	type char
-	shape string
-	
-	color id
-	default id
-	history [] #commands
-	
-class Color
-	
-	name string
-	red int
-	green int
-	blue int
-	
 
 views:
 	list:

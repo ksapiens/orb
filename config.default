@@ -34,21 +34,27 @@ COLOR = {	#		R			G			B
 	white:			[ F,F,F ]
 }
 TYPE ={
-	Type:				['?', :cyan],
-	Item:				['',  :dark],
-	Entry:			['/', :orange],
-	Directory:  ['/', :yellow],
-	Executable: ['/', :red],
-	Image:			['/', :green],
-	Video:			['/', :cyan],
-	Audio:			['/', :blue],
-	Collection: ['*', :green],
-	Container:  ['*', :green],
-	Command:		['>', :magenta],
-	Host:				[':', :green],
-	User:				['@', :blue],
-	Add:				['+', :white],
-	Option:			['-', :blue],
-	Section:		[' ', :bright]
+	Type:				['?', :cyan, 'list of all types'],
+	Item:				['',  :dark, 'all items'],
+	Entry:			['/', :orange, 'unspecified binary file'],
+	Directory:  ['/', :yellow, 'files containing files ( folder )'],
+	Executable: ['/', :red, 'executable file'],
+	Textfile:		[' ', :white, 'files containing text characters'],
+	Image:			['/', :green, 'all image files'],
+	Video:			['/', :cyan, 'all video files'],
+	Audio:			['/', :blue, 'all audio files'],
+	Collection: ['*', :green, 'containing a list of items'],
+	Container:  ['*', :green, 'containing the contents of items'],
+	Command:		['>', :magenta, 'collection of executables, options and other items'],
+	Option:			['-', :blue, 'options to configure a command'],
+	Host:				[':', :green, 'computers on the network'],
+	User:				['@', :blue, 'people'],
+	Add:				['+', :white, ''],
+	Action:			[' ', :red, ''],
+	Text:				[' ', :bright, 'generic string of characters'],
+	Word:				[' ', :white, 'valid string from spoken language'],
+	Section:		[' ', :bright, 'generic text'],
+	
+	
 
 }

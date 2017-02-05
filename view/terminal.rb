@@ -15,6 +15,10 @@ KEY_TAB = 9
 KEY_SHIFT_TAB = 353
 KEY_RETURN = 10
 
+ONE_FINGER = 4
+TWO_FINGER = 16384
+
+
 class Window 
 
 	attr_accessor :focus #, :height
