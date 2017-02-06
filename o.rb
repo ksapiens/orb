@@ -6,7 +6,7 @@
 #
 # copyright 2017 kilian reitmayr
 $LOAD_PATH  << __dir__ #"#{File.dirname __FILE__}/."
-require 'pry'
+#require 'pry'
 require 'logger'
 require 'sequel'
 require "helpers.rb"
@@ -23,12 +23,17 @@ DB = Sequel.sqlite "~/.orb/db.sqlite".path
 if FIRST	
 	DB.create_table( :items ) do #objects
   	primary_key :id
-  	Integer :type_id #meaning identity  
+  	
+  	Integer :default_id
+  	
+  	String :type #meaning identity  
   	String :long #, :unique => true 
   	String :short
   	String :extra
   	String :color #_id, :colors
-  	#String :found_in #file
+  	Integer :count
+  	
+  	#String :found_in #file - for editing
   	#Integer :position
   	#TrueClass :executable
   	DateTime :time
@@ -52,8 +57,10 @@ NEXT, PREVIOUS = 1, -1
 if FIRST
 	#fork do
 	DB.transaction do
-		TYPE.each{ |type,var| Type.create long:type, short:var.first,
-			color:var[1], extra:var.last }
+		%w[ content add rename help manual ].map{|name| 
+			Action.create long:name }	
+		TYPE.each{ |type,var| Type.create long:type,short:var.first,
+			color:var[1], extra:var.last, default_id:1 }
 		Textfile.create( long: "./help.txt".path, short: "help", 
 			extra: "click here or type 'help' and press TAB" )
 		Directory.create( long: "/", short: "root" )
@@ -101,7 +108,7 @@ $world = [
 	(COMMAND = Writer.new	prefix: ">", x: LEFT, 
 		y: lines-1, height:0, delimiter:' ', selection:false),
 	(STACK = Writer.new content: 
-		DEFAULT + Item.order(:time).reverse.all, 
+		DEFAULT + Entry.order(:time).reverse.all, 
 	 	x: LEFT, delimiter:$/,	selection:true ) ]
 
 # main class
@@ -124,7 +131,7 @@ class ORB #< Window
 	def action id, x, y
 		for area in $world
 			if 	x.between?( area.left, area.right ) && 
-					y.between?( area.top, area.bottom )
+					y.between?( area.top, area.bottom+1 )
 				
 				#LOG.debug "e: %s b: %s" % [mouse.eid, mouse.bstate ]
 				area.action id, x - area.left, y - area.top

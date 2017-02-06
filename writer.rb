@@ -46,7 +46,7 @@ class Writer < Pad #Window #
 		#LOG.debug " << :#{item}"
 		$world = $world[0..index] if index
 		@content.unshift(item) #.flatten!
-		@content.uniq!# {|item| item.long }
+		@content.uniq! {|item| item.long }
 		item.save
 		work
 	end
@@ -109,7 +109,6 @@ class Writer < Pad #Window #
 		#resize @height, LIMIT #unless self == $world.last
 	end
 	def action id=KEY_TAB, x=0,y=0 #mouse=nil
-		#x,y = (mouse.x or 0), (mouse.y or 0)
 		if self == COMMAND
 			return if @content.empty?
 			#LOG.debug "command :#{@content}"
@@ -149,10 +148,11 @@ class Writer < Pad #Window #
 			next if result.empty?		
 			#LOG.debug "result: #{result}"#target #item				
 			$world.last.trim #unless result.empty?		
+			ENV["COLUMNS"] = (cols - $world.last.right).to_s
 			$world << Writer.new( 
 				#x:$world.last.right+MARGIN+2,
 				content: result, selection:true	) 
 		end
-		$focus = 2 #index + 1
+		$focus = $world.last.index #+ 1
 	end
 end

@@ -6,42 +6,47 @@
 require "sequel"
 require "helpers.rb"
 class Item < Sequel::Model
-	class << self; attr_accessor :id; end
-	def self.type; self.id ||= Type[ long: self.to_s ];end
-
+	#class << self; attr_accessor :id; end
+	#def self.default; @default ||= self.type.default; end
 	plugin :timestamps, create: :time, update: :time
-  plugin :single_table_inheritance, :type_id, model_map: 
-  	Hash[ ([nil]+TYPE.keys).each_with_index.entries ].invert	  	  #many_to_one :type, key: :type_id, class: self
+  plugin :single_table_inheritance, :type#, model_map: 
+  	#Hash[ ([nil]+TYPE.keys).each_with_index.entries ].invert
+	many_to_one :default, key: :default_id, class: self
   many_to_many :items, class: self, join_table: :relations, 
   	left_key: :first_id, right_key: :second_id
+
 	def self.descendants
   	ObjectSpace.each_object(Class).select{ |klass| klass < self }
   end
-  alias :history :items 
-  alias :add_history :add_item 
-	attr_accessor :x, :y
+	def self.type; @type ||= Type[ long: self.to_s ];end	
+	def self.actions item
+		%w[ content add rename ].map{|name| 
+			Action[ long:name].for item } 		
+	end
 	def self.create args
 		items = args.delete( :items ) if args[:items]
 		instance = super args
-		LOG.debug items
+		#LOG.debug items
 		items.each{ |item| instance.add_item item.save } if items
 		instance
 	end
+	
+  alias :history :items 
+  alias :add_history :add_item 
+	attr_accessor :x, :y
 	def initialize args
 	#args[:type_id] = (TYPE.keys.index self.class.to_s.to_sym) + 1
 		@items = args.delete( :items ) if args[:items]
-		super args
-	end
+		super args;	end
 	def save
 		@items.each{ |item| add_item item.save } if @items
-		super
-	end
+		super; end
 	def find args
 		@items = args.delete( :items ) if args[:items]
-		super args
-	end
-	def to_s; short ? short : long; end
+		super args;	end
+	def to_s; short or long; end
 	def color; (super or self.class.type.color).to_sym; end
+	#def default; super or self.class.type.default; end
 	def length; to_s.length; end
 	#def type;	Type[ long: self.class.to_s ]; end	
 	def content; end
@@ -52,21 +57,17 @@ class Item < Sequel::Model
 		#LOG.debug "action #{id}"
 		case id
 			when KEY_TAB, ONE_FINGER
-				self.class.type.actions( self ).first.action
+				(default or self.class.type.default).for(self).action id
 			when KEY_SHIFT_TAB, TWO_FINGER
-				[ self.class.type.actions( self ) ]#.map{ |action|
-						#if action.is_a? Command
-							#action.with self ]
-						#else
-						#	action.item = self
-						#end ] 
+				[ self.class.actions( self ) +
+					self.class.type.history.map{ |command| 
+						command.for self } ]			
 			when KEY_CTRL_A 
 				add
 			when KEY_CTRL_R 
 				rename
 		end
 	end
-
 end
 class Type < Item
 	alias :symbol :short 
@@ -75,25 +76,17 @@ class Type < Item
 #	def default item
 #		actions.first
 #	end
-	def actions item
-		%w[ content add rename ].map{|name| Action.new name,item } +
-		history.map{ |command| command.with item }
-	end
+	
 	def content
 		[[ Add.new(long:long) ] + 
 		 eval( long + ".all" ) ]
 	end  
 end
 class Action < Item
-	def initialize name, item
-		#@name = name
-		@item = item
-		super long: name
-	end
+	def for item; @item = item; self; end
 	def action id=nil 
 		@item.instance_eval long 
 	end
-	
 end
 class Add < Item
 	def action id=nil
@@ -115,8 +108,8 @@ class Entry < Item
 		super args #path.path, short#.gsub /$\//, ''
 	end
 	def description 
-		extra ||= `ls -dalh #{long} 2>/dev/null`.strip
-		long + " " + extra
+		#extra ||= `ls -dalh #{long} 2>/dev/null`.strip
+		long #+ " " + extra
 	end
 end
 class Directory < Entry
@@ -138,25 +131,29 @@ class Executable < Entry
 		COMMAND.add self
 		#man = ManPage.new(long)
 		#if man.page
-		#	[[Collection.new( long:"history", items:@items )] +
+			[ #Collection.new( long:"history", items:@items ), 
+				%w[help manual].map{|name| Action[long:name].for self } +
+				history ]
 		#		man.options.map{ | outline, description |	Option.new( 
 		#			long: outline.split(",").last, extra: description) } +
 		#		man.page.map{ |section ,content| 
 		#			Section.new long: section, extra: content } ]
 		#else [ `COLUMNS=1000 #{long} --help` ];end
-		[ `COLUMNS=1000 #{long} --help` ]
 	end
+	def help;	[ `#{long} --help` ]; end	
+	def manual;	[ `man #{long}` ];	end	
 	def description #extra
-		extra or begin
-			if (whatis = `whatis #{long} 2>/dev/null`).empty? 
-				extra = super
-			else 
-			  LOG.debug "desc :#{long}"
-				extra = whatis.lines.first[23..-1].strip
-			end
+		extra ||= (`COLUMNS=#{ENV["COLUMNS"].to_i + 23} whatis #{short} 2>/dev/null`.lines.first or "")[23..-1] or super
+#		extra or begin
+#			if (whatis = `whatis #{long} 2>/dev/null`).empty? 
+#				extra = super
+#			else 
+			  #LOG.debug "desc :#{long}"
+#				extra = whatis
+#			end
 			#save
 			#extra
-		end	
+		#end	
 	end 
 end
 class Textfile < Entry
@@ -203,7 +200,7 @@ class Command < Collection
 	end
 	def extra; items.map(&:long).join ' '; end
 	def add; COMMAND.content = items; end
-	def with item; @item = item; self; end 
+	def for item; @item = item; self; end 
 	def content
 		LOG.debug "command #{items.map(&:long).join ' '}"
 	  parts = items
@@ -212,14 +209,18 @@ class Command < Collection
 		command = last ? Command.find_or_create( 
 			long:parts.join, items:parts ) : self
 		parts.first.add_history command
-		last.type.add_history command if last			
-		parts += @item or last or []
+		last.class.type.add_history command if last			
+		parts << (@item or last) if @item or last 
 		[ `#{parts.map(&:long).join ' '} 2>/dev/null` ]
 	end
 end
 
 class Option < Item
-	def action; add; end
+	def self.actions item
+			[ Action[ long:"add"].for(item) ] 		
+	end
+
+#	def action id=nil; add; end
 	#def initialize outline, description=""
 		#@type = "-"
 		#/(?<name>-+\w+)(?<delimiter>[ =])(?<parameter>.*)/.match(option).to_h)
