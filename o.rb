@@ -23,26 +23,29 @@ DB = Sequel.sqlite "~/.orb/db.sqlite".path
 if FIRST	
 	DB.create_table( :items ) do #objects
   	primary_key :id
-  	
-  	Integer :default_id
-  	
+  	foreign_key :default_id
   	String :type #meaning identity  
+
+		String :symbol, fixed: true, size: 1
+  	String :color #_id, :colors
+  	
   	String :long #, :unique => true 
   	String :short
   	String :extra
-  	String :color #_id, :colors
+  	
   	Integer :count
+  	unique [ :long, :type ]
   	
   	#String :found_in #file - for editing
   	#Integer :position
-  	#TrueClass :executable
+  	TrueClass :in_stack
   	DateTime :time
-	end #unless DB.table_exists? :items
+	end 
  	
 	DB.create_table( :relations ) do
   	primary_key :id
-  	foreign_key :first_id, :items#, :on_delete => :cascade
-  	foreign_key :second_id, :items#, :on_delete => :cascade
+  	foreign_key :first_id, :items
+  	foreign_key :second_id, :items
 	end 
 end
 require "entities.rb"
@@ -57,41 +60,46 @@ NEXT, PREVIOUS = 1, -1
 if FIRST
 	#fork do
 	DB.transaction do
-		%w[ content add rename help manual ].map{|name| 
+		%w[ content add rename help manual ].each{ |name| 
 			Action.create long:name }	
-		TYPE.each{ |type,var| Type.create long:type,short:var.first,
+		TYPE.each{ |type,var| Type.create long:type, 
+			short:type.downcase, symbol:var.first,	
 			color:var[1], extra:var.last, default_id:1 }
-		Textfile.create( long: "./help.txt".path, short: "help", 
-			extra: "click here or type 'help' and press TAB" )
-		Directory.create( long: "/", short: "root" )
-		Directory.create( long: ENV["HOME"], short: "home" )
-		Container.create( long: "commands", items: 
-			(ENV["PATH"].split(":")-["."]).map{ |path| 
-				Directory.new( long: path, short: :name ) } )
-		#Item.descendants.each{ |name|	Type.create long: name }
-		#Collection.create( long: "types", items: Type.all )
-		#log = "__LOG\n"
-		#log += ("~/.zsh_history").read.force_encoding(
+	end; #fork do; 
+	DB.transaction do	
+		for path in ENV["PATH"].split(":")-["."]
+			path = path.path
+			`whatis -l -s 1 #{path}/* 2>empty`.scan(
+				/^(.+) \(1.*- (.+)$/).each do |values|
+					Executable.create long:path +"/"+ values.first,
+						short: values.first, extra:values.last rescue next
+			end
+		end
+		for line in "empty".read.lines
+			Executable.create long:line[/^.+:/].chop, short: :name 
+		end; "empty".rm	
+		#log = ("~/.zsh_history").read.force_encoding(
 		#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 		#	"~/.zsh_history".exists?
-		log = ("~/.bash_history").read if "~/.bash_history".exists?
-		for line in log.lines
-			line.strip.split("|").each{ |cmd| 
-				Command.build( cmd ) } unless line.strip.empty?
+		log ||= ("~/.bash_history").read if "~/.bash_history".exists?
+		for line in log.split /[\n|]/
+			parts = line.partition " "
+			exe = Executable[short:parts.first]
+			Command.create( items: [exe.stack]+	
+				parts.last.parse ) if exe rescue next 
 		end if log
-	end
-	#end
+	end#;end
+	Type[ short:"type" ].stack
+	Directory.create( 
+		long: "!'.'.path", short: "current", in_stack: true)
+	Directory.create( 
+		long: "!ENV['HOME']", short: "home", in_stack: true )
+	Directory.create( long: "/", short: "root", 
+		extra: "beginning of the directory tree", in_stack: true )
+	Textfile.create( long: "./help.txt".path, short: "help", extra:
+	  "click here or type 'help' and press TAB", in_stack: true )
+#	%w[ ? current home root help ].each{ |item| item.save }
 end
-
-DEFAULT = [
-	Textfile[ short: "help" ],
-	Directory[ short: "root" ],
-	Directory[ short: "home" ],
-	Directory.new( long: '.'.path, short: "current"),
-	Container[ long: "commands" ],
-	#Collection[ long: "types" ]
-	Type[ long: "Type" ]
-]
 
 init unless LOADED
 
@@ -101,15 +109,16 @@ $filter=""
 
 $world = [ 
 	(HEAD = Writer.new content:[
-		User.new( long: ENV["USER"] ),
-		Host.new( long: (`hostname`.strip or "localhost") ), 
-		Directory.new( long: '.'.path, short: '.'.path[1..-1] )],
+		User.new( long: "!ENV['USER']" ),
+		Host.new( long: "!`hostname`.strip" ), 
+		Directory.new( long: "!'.'.path")],
+		#,short: "!'.'.path[1..-1]")],
 		x: LEFT, y: 0, height:0, delimiter:'', selection:false),
 	(COMMAND = Writer.new	prefix: ">", x: LEFT, 
 		y: lines-1, height:0, delimiter:' ', selection:false),
 	(STACK = Writer.new content: 
-		DEFAULT + Entry.order(:time).reverse.all, 
-	 	x: LEFT, delimiter:$/,	selection:true ) ]
+		Item.where( in_stack: true ).order(:time).reverse.all, 
+	 	x: LEFT, delimiter:$/, selection:true ) ]
 
 # main class
 class ORB #< Window
@@ -142,9 +151,9 @@ class ORB #< Window
 	def run
 		loop do
 #			$world[$focus].work
- 			$counter = 0
-#			$world.each( &:update )
- 			$world.each( &:work )
+ 			#$counter = 0
+			$world.each( &:update )
+#			$world.each( &:work )
     	input = getch #Event.poll 
 			LOG.debug "input :#{input}"
     	case input
@@ -161,31 +170,41 @@ class ORB #< Window
 					halt
 				when KEY_BACKSPACE
 					$filter.chop!
+					$world[$focus].work
 				when KEY_NPAGE
 					$world[$focus].page NEXT
 				when KEY_PPAGE
 					$world[$focus].page PREVIOUS
 				when KEY_DOWN
-					$choice=$choice.cycle NEXT, 0, $selection.size-1 
-					$selection.clear
+					$world[$focus].step NEXT 
+					#$choice=$choice.cycle NEXT, 0, $selection.size-1 
+					#$selection.clear
 				when KEY_UP
-					$choice=$choice.cycle PREVIOUS, 0, $selection.size-1 
-					$selection.clear
+					$world[$focus].step PREVIOUS
+	#				$choice=$choice.cycle PREVIOUS, 0, $selection.size-1 
+					#$selection.clear
 				when KEY_RIGHT
-					$focus=$focus.cycle NEXT, 2, $world.size-1					
+					$focus=$focus.cycle NEXT, 2, $world.size-1
+#					$world[$focus].work
 				when KEY_LEFT
 					$focus=$focus.cycle PREVIOUS, 2, $world.size-1
+#					$world[$focus].work
 				when KEY_TAB, KEY_SHIFT_TAB, KEY_CTRL_A
-					action input, *$selection[$choice]#.first
+					#$filter.clear
+        	#last = $focus
+					$world[$focus].action input#, *$selection[$choice]#
+					#$world[last].work
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.action #primary
         when String
         	$world[$focus].page = 0
-        	$counter,$choice = 0,0
-					$filter = "" if $selection.empty?        	
+        	$world[$focus].choice = 0
+        	#$counter,$choice = 0,0
+					#$filter = "" if $selection.empty?        	
         	#	$filter.chop
         	$filter += input
-        	$selection.clear
+        	#$selection.clear
+        	$world[$focus].work
     	end
     end
   end

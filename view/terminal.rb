@@ -18,7 +18,6 @@ KEY_RETURN = 10
 ONE_FINGER = 4
 TWO_FINGER = 16384
 
-
 class Window 
 
 	attr_accessor :focus #, :height
@@ -44,17 +43,18 @@ class Window
 		#COLOR.keys.index(args[:color]||:white) 
 		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
 		#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
-		match = /(#{$filter})/i.match(string) unless 
-			$filter.empty? or !args[:selection]
-		mode (args[:highlight] or match and $counter==$choice) ? A_STANDOUT : A_NORMAL do				
+		match = /(#{$filter})/i.match(string) if not $filter.empty?
+#			args[:selection] and 
+		mode (args[:highlight]) ? A_STANDOUT : A_NORMAL do				
 			if match	
 	#			LOG.debug "term: %s,%s f: %s" % [curx,cury,$filter]
-				$selection << [ curx+left, top+cury ]
+				#$selection << [ curx+left, top+cury ]
 				addstr match.pre_match
-					mode $counter==$choice ? A_NORMAL : A_STANDOUT do 
-						addstr match.to_s
-					end
-				$counter+=1
+#				mode A_STANDOUT do 
+				mode (args[:highlight]) ?  A_STANDOUT : A_NORMAL do
+					addstr match.to_s
+				end
+				#$counter+=1
 				#LOG.debug "counter :#{$counter}"
 				addstr match.post_match
 			else
@@ -65,6 +65,7 @@ class Window
 end
 
 def init
+	`tabs 2`
 	init_screen
 	start_color
 	#nonl

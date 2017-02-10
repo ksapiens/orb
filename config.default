@@ -37,8 +37,9 @@ TYPE ={
 	Type:				['?', :cyan, 'list of all types'],
 	Item:				['',  :dark, 'all items'],
 	
-	Entry:			['/', :orange, 'unspecified binary file'],
-	Directory:  ['/', :yellow, 'files containing files ( folder )'],	Executable: ['/', :red, 'executable file'],
+	Entry:			['/', :orange, 'all files'],
+	Directory:  ['/', :yellow,'files containing files ( folder )'],
+	Executable: ['/', :red, 'executable files'],
 	Textfile:		['/', :white, 'files containing text characters'],
 	Image:			['/', :green, 'all image files'],
 	Video:			['/', :cyan, 'all video files'],
@@ -49,16 +50,15 @@ TYPE ={
 	Chardevice:	['/', :magenta, 'all character devices'],
 	Blockdevice:['/', :magenta, 'all block devices'],
 	
-	Collection: ['*', :green, 'containing a list of items'],
-	Container:  ['*', :green, 'containing the contents of items'],
-	Command:		['>', :magenta, 'collection of executables, options and other items'],
-	
+	Collection: ['*', :green, 'items containing a list of items'],
+	Command:		['>', :magenta, 'sequence of an executable with arguments'],
 	Option:			['-', :blue, 'options to configure a command'],
+
 	Host:				[':', :green, 'computers on the network'],
 	User:				['@', :blue, 'people'],
 	Add:				['+', :white, ''],
-	Action:			[' ', :red, ''],
+	Action:			['!', :red, ''],
 	Text:				[' ', :bright, 'generic string of characters'],
-	Word:				[' ', :white, 'valid string from spoken language'],
-	Section:		[' ', :bright, 'generic text'],
+	Word:				[' ', :white, 'valid string from spoken language']
+
 }

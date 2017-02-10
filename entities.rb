@@ -44,15 +44,18 @@ class Item < Sequel::Model
 	def find args
 		@items = args.delete( :items ) if args[:items]
 		super args;	end
-	def to_s; short or long; end
+	def to_s; (short or long); end
+	def long; super[0] == "!" ? eval(super[1..-1]) : super; end
 	def color; (super or self.class.type.color).to_sym; end
 	#def default; super or self.class.type.default; end
 	def length; to_s.length; end
 	#def type;	Type[ long: self.class.to_s ]; end	
 	def content; end
-	def description; extra or "";	end
+	def description; extra or (long if short) or "";	end
+	def symbol; super or self.class.type.symbol; end
 	def add; COMMAND.add self; end
 	def rename; short = COMMAND.getstr; save; end
+	def stack; self.in_stack = true; save; end
 	def action id=KEY_TAB
 		#LOG.debug "action #{id}"
 		case id
@@ -70,13 +73,9 @@ class Item < Sequel::Model
 	end
 end
 class Type < Item
-	alias :symbol :short 
+	#alias :symbol :short 
 	#alias :actions :items
-	def to_s; long; end
-#	def default item
-#		actions.first
-#	end
-	
+	#def to_s; long; end
 	def content
 		[[ Add.new(long:long) ] + 
 		 eval( long + ".all" ) ]
@@ -84,9 +83,7 @@ class Type < Item
 end
 class Action < Item
 	def for item; @item = item; self; end
-	def action id=nil 
-		@item.instance_eval long 
-	end
+	def action id=nil; @item.instance_eval long; end
 end
 class Add < Item
 	def action id=nil
@@ -98,25 +95,18 @@ class Add < Item
 end
 class Text < Item; end
 class Word < Text; end
-#class Section < Text
-#	def content; [ extra ];	end
-#end
 class Entry < Item
 	def initialize args #path, short=nil#path#.split("/")[-1]
 		args[:short] = args[:long].split("/")[-1] if 
 			args[:short] == :name
 		super args #path.path, short#.gsub /$\//, ''
 	end
-	def description 
-		#extra ||= `ls -dalh #{long} 2>/dev/null`.strip
-		long #+ " " + extra
-	end
+
 end
 class Directory < Entry
 	def content 
 		files,directories = [],[] #@entries = { right: [], down: [] }
 		`file -i #{long}/*`.each_line do |line|
-
 			entry = line.entry
     	(entry.is_a?(Directory) ? directories : files ) << 
     		entry if entry
@@ -142,8 +132,8 @@ class Executable < Entry
 	end
 	def help;	[ `#{long} --help` ]; end	
 	def manual;	[ `man #{long}` ];	end	
-	def description #extra
-		extra ||= (`COLUMNS=#{ENV["COLUMNS"].to_i + 23} whatis #{short} 2>/dev/null`.lines.first or "")[23..-1] or super
+	#def description #extra
+		#extra ||= (`COLUMNS=#{ENV["COLUMNS"].to_i + 23} whatis #{short} 2>/dev/null`.lines.first or "")[23..-1] or super
 #		extra or begin
 #			if (whatis = `whatis #{long} 2>/dev/null`).empty? 
 #				extra = super
@@ -154,10 +144,10 @@ class Executable < Entry
 			#save
 			#extra
 		#end	
-	end 
+	#end 
 end
 class Textfile < Entry
-	def content;super;[long.read];end
+	def content; [long.read]; end
 end	
 class Video < Entry; end
 class Audio < Entry; end
@@ -173,45 +163,32 @@ class Collection < Item
 	def description; "#{items.size} entries"; end
 	def content; [items]; end
 end
-class Container < Collection
-	def content
-		result = [] 
-		for item in items
-		  item.content.each_with_index{ |value,index|
-				result[index] ||= []
-				result[index] += value }
-		end
-		result
-	end
-end
 class Command < Collection
-	def self.build input
-		parts = input.partition(" ")
-		return if (name = parts.shift).empty?
-		
-		# input.strip.split#(/\s(-{1,2}[^-]*)/)
-		path=`which "#{ Shellwords.escape name }" 2> /dev/null`.strip
-		#LOG.debug "cbuild #{name} #{path}"
-		input = [ Executable.find_or_create(
-			long: (path.empty? ? name : path), 
-			short: name) ]
-		input += parts.last.parse false 
-		self.find_or_create long: input.join, items: input
+	def self.create args
+	#	parts = 
+		args[:long] = args[:items].join
+		#args[:items].first.add_history( 
+	  first = args[:items].first
+	  last = args[:items].last unless 
+	  	args[:items].last.is_a?(Option) or 
+	  	args[:items].size == 1
+		command = super args #)Command.find_or_create(long:parts.join,items:parts)
+		first.add_history command
+		last.class.type.add_history command if last
+		command
 	end
 	def extra; items.map(&:long).join ' '; end
 	def add; COMMAND.content = items; end
-	def for item; @item = item; self; end 
+	def for item
+		@combined = items[0..-2]+[item]
+		long=items[0..-2].join; self
+	end 
 	def content
 		LOG.debug "command #{items.map(&:long).join ' '}"
-	  parts = items
-	  last = parts.pop unless 
-	  	parts.last.is_a?(Option) or parts.size == 1
-		command = last ? Command.find_or_create( 
-			long:parts.join, items:parts ) : self
-		parts.first.add_history command
-		last.class.type.add_history command if last			
-		parts << (@item or last) if @item or last 
-		[ `#{parts.map(&:long).join ' '} 2>/dev/null` ]
+		#parts << (@item or last) if @item or last 
+		#@item ||= []
+	  #if @item
+		[`#{(@combined or items).map(&:long).join ' '} 2>/dev/null`]
 	end
 end
 

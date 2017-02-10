@@ -71,7 +71,7 @@ class String
 		#shapes = /@^(https?|ftp)://[^\s/$.?#].[^\s]*$@iS/
 		this = self
 		begin
-			shapes = /(?<Option>--?[\w-]*)|(?<Entry>\/[[[:alnum:]]\/]+)/
+			shapes = %r[\W(?<Option>--?[\w-]+)\W|(?:\W)(?<Entry>\/.+)(?:)\W]
 			match = shapes.match this
 			if match 
 				#LOG.debug match#.post_match
@@ -80,8 +80,8 @@ class String
 					raw and not before.empty? 
 				type, string = *match.to_h.select{|k,v|v}.first
 				if type == "Entry" 
-					result << ( `file -i #{string}`.entry or 
-						Entry.new(long:string) )
+					#result << ( `file -i #{string}`.entry or 
+					result << Entry.new(long:string) #)
 				else
 					result << (eval type).new( long: Shellwords.escape(
 						string) ) 
