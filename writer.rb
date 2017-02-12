@@ -7,78 +7,57 @@ require "helpers.rb"
 
 class Writer < Pad #Window #
 	attr_accessor :content, :page, :choice
+	attr_reader :height
 	include Generic
 	def initialize args 
-		parse args  
-		@x ||= ($world.last.right + 1 + MARGIN ) or LEFT
+		variables_from args
+		@x ||= ($world.last.right + 2 + MARGIN ) or LEFT
 		@y ||= TOP
-		@width ||= (cols-@x)
+		@width ||= (cols-@x-1)
 		@height ||= lines - TOP - BOTTOM - 2
 		@choice ||= 0		
 		@page ||= 0
 		@content ||= []
-		@raw = @content.class == String
-		@content = @content.parse if @raw
-		@delimiter ||= $/ unless @raw
-		
+		@delimiter ||= $/ if @content.class == Array
+		@content = @content.parse if raw?
 		LOG.debug "writer %s %s %s %s" % [@y, @x, @height, @width]
-		super 1000,@width
-		#fork do 
-		#end
+		super 1000,@raw ? @width : 1000
 		work 
 	end
+	def pass dir; $focus.cycle dir, 2, $world.size-1; end
 	def index; $world.index self; end
 	def focus?; $focus == index; end
 	def list?; @delimiter == $/; end
-	def paging?; @content.size > @height and @height > 2; end
+	def raw?; !@delimiter; end
+	def paging?; view.size > @height and @height > 2; end
 	def pageup?; @page > 0 and paging?; end
-	#def pagedown?; @pagedown && paging?; end
-	#def pagedown?; view[-1] != @content[-1] and paging?; end
-	def pagedown?; cury > stop; end
-	#def oneline?; @height < 3; end
-	def page direction
-		#@start += direction * (@height - 2)
-		@page += direction if (direction==NEXT ? pagedown? : pageup?)
-		update#work
-	end
-	def add item;	@content << item;work; end
-	def << (item) 		
-		#LOG.debug " << :#{item}"
-		#$world = $world[0..index] if index
-		@content.unshift(item) #.flatten!
-		@content.uniq! {|item| item.long }
-		item.save
-		work
+	def pagedown?; stop < @end; end
+	def move direction
+		@choice = @choice.cycle direction, 0, view.size-1
+		@page += NEXT if @choice > stop
+		@page += PREVIOUS if @choice < start
+		#work
 	end
 	def view 
-		
 			unless $filter.empty? #and focus?
-			#LOG.debug "#{$filter} > "
 				return @content.select{|i| 
 					i.to_s.downcase.index($filter)}
 			else
 				return @content
 			end if list?	
-			#result = @content.select{|item|
-				#item.y.between? @start, @start+height-2 }
-		#end
 		@content
 	end	
 	def start; @page*@height;end
 	def stop; (@page+1)*@height;end
 	def update
 		if @height > 2 #list?
-			common={color: :white,y:stop,x:@width-1,highlight:focus?}
-			draw paging? ? "v" : " ", common	if pagedown?
+			common={y:stop,x:@width,highlight:focus?}
+			draw "v", common									if pagedown?
 			draw "^", common.merge( y:start )	if pageup?
-			#draw " ", common 							unless paging?
+			draw " ", common 							unless paging?
 		end
 		refresh start,0, @y, @x, @y+@height, @x+@width#right,bottom
 	end	
-	def step direction
-		@choice = @choice.cycle direction, 0, @content.size-1
-		work
-	end
 	def work
 		return if LOADED
 		clear 
@@ -90,32 +69,37 @@ class Writer < Pad #Window #
 			draw @delimiter if @delimiter and curx > 0  
 			item.x,item.y = curx,cury if @raw
 				draw item.symbol, color: :dark unless @raw
-				draw item.to_s[space], color: item.color,
+				draw item.to_s, color: item.color,
 					#selection:(@selection ), 
-					highlight: (idx==@choice)
-				draw (" "+item.description)[space],
-					color: :bright if	@width-curx > 2 and list? and not @short 
+					highlight: (idx==@choice) and @selection
+				draw (" "+item.more),
+					color: :bright if	list? and @width > LIMIT
 			#end
 		end
+		@end = cury
 		#box '|', '-' 
 		update
+		self
 	end
-	def space; 0..(list? ? @width-curx-2 : -1); end
+	#def space; 0..(list? ? @width-curx-2 : -1); end
 	def trim
-		#clear
-		items = view + [" "," "]
-		@width = (items.max{ |a, b| 
-			a.length <=> b.length }.length+2).max LIMIT 
-		@short = true
+		#items = view + [" "," "]
+		@width = view.longest.length.max LIMIT 
 		work
-		#update
-		#resize @height, LIMIT #unless self == $world.last
+	end	
+	def add item;	@content << item;work; end
+	def << (item) 		
+		#LOG.debug " << :#{item}"
+		@content.unshift(item) #.flatten!
+		@content.uniq! {|item| item.long }
+		item.save
+		work
 	end
 	def action id=KEY_TAB, x=nil,y=nil #mouse=nil
 		if self == COMMAND
 			return if @content.empty?
 			#LOG.debug "command :#{@content}"
-			target = Command.find_or_create(items: @content) 
+			target = Command.create(items: @content) 
 		elsif !x and !y
 			target = view[@choice]
 		elsif y==bottom-1 and x == width-1 and pagedown?
@@ -127,36 +111,36 @@ class Writer < Pad #Window #
 #			LOG.debug "pointer :#{x}, #{y}" 			
 		else
 			for item in view
-#				LOG.debug "previous :#{previous.x}, #{previous.y}" 
-				previous ||= item
-				previous.y -= start
-				item.y -= start
-				#next unless previous #|| false
-				target = previous if 
-					( y == item.y and	item.y == previous.y and 
-						x.between?(previous.x, item.x-1) ) or
-					(y == previous.y and x >= previous.x ) or
-					(y == item.y and x < item.x ) or 
-					(y > previous.y and y < item.y )
-#				LOG.debug "item :#{item.x}, #{item.y}" 
-				previous = item
+#				LOG.debug "last :#{last.x}, #{last.y}" 
+				last ||= current
+				last.y -= start
+				current.y -= start
+				#next unless last #|| false
+				target = last if 
+					( y == current.y and	current.y == last.y and 
+						x.between?(last.x, current.x-1) ) or
+					(y == last.y and x >= last.x ) or
+					(y == current.y and x < current.x ) or 
+					(y > last.y and y < current.y )
+#				LOG.debug "current :#{current.x}, #{current.y}" 
+				last = current
 			end unless view.size == 1
-			results ||= previous.action( id ) #unless results
+			#results ||= previous.action( id ) #unless results
 		end
 		LOG.debug "target :#{target}" 
-		#target = @content[-1] unless target
 		STACK << target unless 
-			[ Add, Option, Text, Action ].include? target.class 
-		return unless results = target.action( id )
+			[ Add, Option, Action ].include? target.class 
+		results = target.action( id )
+		return unless results.is_a? Array#Enumerable
 		$world=$world[0..2]#index]		
 		$filter.clear
 		for result in results
-			next if result.empty?		
+			next if result.empty?
 			#LOG.debug "result: #{result}"#target #item				
 			$world.last.trim #unless result.empty?		
-			ENV["COLUMNS"] = (cols - $world.last.right).to_s
+			ENV["COLUMNS"] = (cols - $world.last.right - 2 ).to_s
 			$world << Writer.new( content: result, selection:true	) 
 		end
-		$focus = $world.last.index #+ 1
+		$focus = 3#$world.last.index #+ 1
 	end
 end

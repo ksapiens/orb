@@ -37,7 +37,7 @@ class Window
 
 	def draw string, args={} 
 		args[:color] ||= :white
-		args[:color] = COLOR.keys.index(args[:color]) if
+		args[:color] = COLOR.keys.index(args[:color]) if 
 			args[:color].is_a? Symbol
 		attron color_pair args[:color]
 		#COLOR.keys.index(args[:color]||:white) 
@@ -51,7 +51,7 @@ class Window
 				#$selection << [ curx+left, top+cury ]
 				addstr match.pre_match
 #				mode A_STANDOUT do 
-				mode (args[:highlight]) ?  A_STANDOUT : A_NORMAL do
+				mode (args[:highlight]) ?  A_NORMAL : A_STANDOUT do
 					addstr match.to_s
 				end
 				#$counter+=1

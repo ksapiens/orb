@@ -21,10 +21,11 @@ DB = Sequel.sqlite "~/.orb/db.sqlite".path
 #DB.loggers << LOG
 
 if FIRST	
+	puts "first run: data persistence"
 	DB.create_table( :items ) do #objects
   	primary_key :id
   	foreign_key :default_id
-  	String :type #meaning identity  
+  	String :type, size: 12 #meaning identity  
 
 		String :symbol, fixed: true, size: 1
   	String :color #_id, :colors
@@ -34,12 +35,11 @@ if FIRST
   	String :extra
   	
   	Integer :count
-  	unique [ :long, :type ]
-  	
   	#String :found_in #file - for editing
   	#Integer :position
   	TrueClass :in_stack
   	DateTime :time
+  	unique [ :long, :type ]
 	end 
  	
 	DB.create_table( :relations ) do
@@ -53,35 +53,40 @@ require 'view/terminal'
 require "manual.rb"
 require "writer.rb"
 
-halt unless ($* & [ "-d", "debug" ]).empty?
+def debug?; $*.include? "-d"; end
+def loop?; $*.include? "-l"; end
+halt if debug?
 LOADED = (__FILE__ != $0)
 NEXT, PREVIOUS = 1, -1
 
 if FIRST
 	#fork do
+	puts "creating essentials"
 	DB.transaction do
-		%w[ content add rename help manual ].each{ |name| 
-			Action.create long:name }	
+		actions = %w[ content add rename set_default set_type_default].map{ |name| Action.create( long:name) }	
 		TYPE.each{ |type,var| Type.create long:type, 
-			short:type.downcase, symbol:var.first,	
-			color:var[1], extra:var.last, default_id:1 }
+			short:type.downcase, symbol:var.first, items:actions[0..2],				 color:var[1], extra:var.last, default_id:1 }
 	end; #fork do; 
 	DB.transaction do	
+		puts "creating known entries in PATH"
 		for path in ENV["PATH"].split(":")-["."]
-			path = path.path
+			puts path = path.path
 			`whatis -l -s 1 #{path}/* 2>empty`.scan(
 				/^(.+) \(1.*- (.+)$/).each do |values|
 					Executable.create long:path +"/"+ values.first,
 						short: values.first, extra:values.last rescue next
 			end
 		end
+			
+		puts "creating unknown entries in PATH"
 		for line in "empty".read.lines
 			Executable.create long:line[/^.+:/].chop, short: :name 
 		end; "empty".rm	
 		#log = ("~/.zsh_history").read.force_encoding(
 		#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 		#	"~/.zsh_history".exists?
-		log ||= ("~/.bash_history").read if "~/.bash_history".exists?
+		puts "parsing shell logs"
+		log = ("~/.bash_history").read #if "~/.bash_history".exists?
 		for line in log.split /[\n|]/
 			parts = line.partition " "
 			exe = Executable[short:parts.first]
@@ -89,6 +94,7 @@ if FIRST
 				parts.last.parse ) if exe rescue next 
 		end if log
 	end#;end
+	puts "creating basic objects"
 	Type[ short:"type" ].stack
 	Directory.create( 
 		long: "!'.'.path", short: "current", in_stack: true)
@@ -97,7 +103,7 @@ if FIRST
 	Directory.create( long: "/", short: "root", 
 		extra: "beginning of the directory tree", in_stack: true )
 	Textfile.create( long: "./help.txt".path, short: "help", extra:
-	  "click here or type 'help' and press TAB", in_stack: true )
+	  "click or tap here or type 'help' and press TAB", in_stack: true )
 #	%w[ ? current home root help ].each{ |item| item.save }
 end
 
@@ -150,12 +156,13 @@ class ORB #< Window
 	end
 	def run
 		loop do
-#			$world[$focus].work
+			writer = $world[$focus].work
  			#$counter = 0
 			$world.each( &:update )
 #			$world.each( &:work )
     	input = getch #Event.poll 
 			LOG.debug "input :#{input}"
+			
     	case input
     		when KEY_MOUSE
     			mouse = getmouse
@@ -170,47 +177,36 @@ class ORB #< Window
 					halt
 				when KEY_BACKSPACE
 					$filter.chop!
-					$world[$focus].work
+					
 				when KEY_NPAGE
-					$world[$focus].page NEXT
+					writer.move NEXT * writer.height
 				when KEY_PPAGE
-					$world[$focus].page PREVIOUS
+					writer.move PREVIOUS * writer.height
 				when KEY_DOWN
-					$world[$focus].step NEXT 
-					#$choice=$choice.cycle NEXT, 0, $selection.size-1 
-					#$selection.clear
+					writer.move NEXT 
 				when KEY_UP
-					$world[$focus].step PREVIOUS
-	#				$choice=$choice.cycle PREVIOUS, 0, $selection.size-1 
-					#$selection.clear
+					writer.move PREVIOUS
 				when KEY_RIGHT
-					$focus=$focus.cycle NEXT, 2, $world.size-1
-#					$world[$focus].work
+					writer.pass NEXT
 				when KEY_LEFT
-					$focus=$focus.cycle PREVIOUS, 2, $world.size-1
-#					$world[$focus].work
+					writer.pass PREVIOUS
 				when KEY_TAB, KEY_SHIFT_TAB, KEY_CTRL_A
-					#$filter.clear
-        	#last = $focus
-					$world[$focus].action input#, *$selection[$choice]#
-					#$world[last].work
+					$filter.clear
+					writer.action input#, *$selection[$choice]#
 				when KEY_RETURN #KEY_ENTER || 
-					COMMAND.action #primary
+					COMMAND.action 
         when String
-        	$world[$focus].page = 0
-        	$world[$focus].choice = 0
-        	#$counter,$choice = 0,0
-					#$filter = "" if $selection.empty?        	
-        	#	$filter.chop
+        	writer.page = 0
+        	writer.choice = 0
         	$filter += input
-        	#$selection.clear
-        	$world[$focus].work
     	end
     end
   end
 begin
-		ORB.new.run unless LOADED
-end
+#		loop do 
+			ORB.new.run 
+#		end unless LOADED
+end #while loop?
 ensure
 #	LOG.debug "ensure"
 	use_default_colors()

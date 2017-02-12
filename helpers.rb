@@ -14,13 +14,16 @@ def halt
 end
 
 module Generic
-	def parse args, local = false
-		for key, value in args
-			instance_variable_set "@" + key.to_s, value
+#class Hash
+	def variables_from args#bind#, local = false
+		args.each{ |name, value| 
+			instance_variable_set "@"+name.to_s, value }
+#		for 
+#			
+			#bind.
 			#local_variable_set key.to_s, value
-		end	if args.class == Hash	
+#		end	#if args.class == Hash	
 	end
-		
 end
 
 class String
@@ -41,10 +44,10 @@ class String
  	#"\e[#{30+n}m#{self}\e[0m"
  	
 	def file mode="r"; open path, mode; end
-	def read; file.read; end
+	def read cap=nil; cap ? file.read( cap ) : file.read; rescue; end
 	def write content; f=file("w");f.write content;f.close; end
 	def copy target; FileUtils.copy path, target.path; end
-	def path; gsub(/^~/, ENV["HOME"]).gsub(/^\./, ENV["PWD"]); end	
+	def path; gsub(/^~\//, ENV["HOME"]+"/").gsub(/^\.\//,ENV["PWD"]+ "/"); end	
 	def item; Item.new self;end
 	def entry
 		return if self[/cannot open/] or 
@@ -71,22 +74,24 @@ class String
 		#shapes = /@^(https?|ftp)://[^\s/$.?#].[^\s]*$@iS/
 		this = self
 		begin
-			shapes = %r[\W(?<Option>--?[\w-]+)\W|(?:\W)(?<Entry>\/.+)(?:)\W]
+			shapes = %r[\W(?<Option>--?\w[\w-]+)\W|\W(?<Entry>\/[^:\s]+)\W]
 			match = shapes.match this
 			if match 
 				#LOG.debug match#.post_match
-				before = match.pre_match#.strip
-				result << Text.new( long:before ) if 
-					raw and not before.empty? 
+				#before = match.pre_match#.strip
+				#result << Text.new( long:before ) if 
+				#	raw and not before.empty? 
 				type, string = *match.to_h.select{|k,v|v}.first
-				if type == "Entry" 
+				result << Text.new( long:this[0..match.begin(type)-1] )
+				
+				#if type == "Entry" 
 					#result << ( `file -i #{string}`.entry or 
-					result << Entry.new(long:string) #)
-				else
-					result << (eval type).new( long: Shellwords.escape(
-						string) ) 
-				end 
-				this = match.post_match			
+				#	result << Entry.new(long:string) #)
+				#else
+					result << (eval type).new( long: string )#Shellwords.escape(
+						#string) ) 
+				#end 
+				this = this[match.end(type)..-1]
 			else					
 				result << Text.new( long:this) if raw and not this.empty? 
 			end
@@ -97,27 +102,21 @@ end
 		
 class Fixnum
 	def cycle direction, min, max
-		#return if $world.select(&:paging?).empty? #each_with_index.map{|area,index| 
-		#if area.paging? && index != self }.compact[self+direction]
-		copy = self + direction
-		copy = min if copy > max
-		copy = max if copy < min
-		LOG.debug "#{self} to #{copy}"
-		copy
-		#cycle direction unless $world[copy].paging?
+		return self unless direction
+		(min if self>max) or (max if self<min) or (self+direction)
 	end
-#		return min if copy < min
-#		return max if copy > max; 
-#		copy end; 
-	def min i
-		return i if self < i if i
-		self; end
-	def max i	
-		return i if self > i if i
-		self; end
+	def min i; return i if self < i if i; self; end
+	def max i; return i if self > i if i; self; end
 end
 
 class MatchData
 	def to_h; Hash[ names.zip captures ];	end
 end
 
+class Array
+	def longest
+		max = first
+		each{|entry| max = entry if entry.length > max.length }
+		max
+	end
+end

@@ -1,4 +1,26 @@
 
+writer mode:
+	long
+	short
+	raw
+	
+	+more extra between lines
+	-less shrink large text from the middle
+	
+extra mode - alternating greys 
+	extra 
+	long 
+	default output, limit
+	web result
+	history.join /
+	permissions
+	owner
+	link target
+	mime type
+
+user chat server
+permissions on grams / programs / countergrams
+
 views:
 	list:
 		short : multiple column list, 

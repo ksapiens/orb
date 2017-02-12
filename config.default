@@ -34,28 +34,33 @@ COLOR = {	#		R			G			B
 	white:			[ F,F,F ]
 }
 TYPE ={
-	Type:				['?', :cyan, 'list of all types'],
+	Type:				['?', :cyan, 'overview of types'],
 	Item:				['',  :dark, 'all items'],
 	
 	Entry:			['/', :orange, 'all files'],
 	Directory:  ['/', :yellow,'files containing files ( folder )'],
-	Executable: ['/', :red, 'executable files'],
+	#Runnable
+	Gram:				['/', :red, 'executable files / apps'],
 	Textfile:		['/', :white, 'files containing text characters'],
-	Image:			['/', :green, 'all image files'],
+	Image:			['/', :blue, 'all image files'],
 	Video:			['/', :cyan, 'all video files'],
-	Audio:			['/', :blue, 'all audio files'],
+	Audio:			['/', :green, 'all audio files'],
 	Symlink:		['/', :magenta, 'all symbolic links'],
 	Fifo:				['/', :magenta, 'all fifo files'],
 	Socketfile:	['/', :magenta, 'all sockets'],
 	Chardevice:	['/', :magenta, 'all character devices'],
 	Blockdevice:['/', :magenta, 'all block devices'],
 	
-	Collection: ['*', :green, 'items containing a list of items'],
+	Collection: ['#', :yellow, 'items containing a list of items'],
 	Command:		['>', :magenta, 'sequence of an executable with arguments'],
 	Option:			['-', :blue, 'options to configure a command'],
 
 	Host:				[':', :green, 'computers on the network'],
-	User:				['@', :blue, 'people'],
+	Page:				[':', :cyan, 'http page from web server'],
+	User:				['@', :green, 'people'],
+	Email:			[' ', :white, 'email adresses'],
+	Telephone:	[' ', :blue, 'email adresses'],
+	
 	Add:				['+', :white, ''],
 	Action:			['!', :red, ''],
 	Text:				[' ', :bright, 'generic string of characters'],
