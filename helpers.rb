@@ -53,11 +53,12 @@ class String
 		return if self[/cannot open/] or 
 			self[/no read permission/] or self.empty?
 		#LOG.debug self
-		if types = /:\s*([\w-]+)\/([\w-]+)/.match(self)
+		if types = 
     	type=((%w{directory text audio video image symlink socket chardevice fifo} & 
-    		types[1..2]) + ["entry"] ).first
-			path = self[/^.*:/][0..-2]    
-    	type = "executable" if !%w{directory symlink}.include?(type) && path.executable?
+    	types[1..2]) + ["entry"] ).first
+			path = self[/^.*:/].chop #[0..-2]    
+    	type = "executable" if path.executable? and 
+    		 not %w{ directory symlink }.include?( type ) 
     	#type = "config" 
     	type += "file" if type == "text" 
     	(eval type.capitalize).new long:Shellwords.escape(path), short: :name
@@ -102,8 +103,8 @@ end
 		
 class Fixnum
 	def cycle direction, min, max
-		return self unless direction
-		(min if self>max) or (max if self<min) or (self+direction)
+		nxt = (self+direction)
+		(min if nxt>max) or (max if nxt<min) or nxt
 	end
 	def min i; return i if self < i if i; self; end
 	def max i; return i if self > i if i; self; end

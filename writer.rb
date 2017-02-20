@@ -5,142 +5,185 @@
 # copyright 2016 kilian reitmayr
 require "helpers.rb"
 
-class Writer < Pad #Window #
-	attr_accessor :content, :page, :choice
-	attr_reader :height
+class Writer < Pad #Space source #Wand staff pen pencil quill / scribe 
+	attr_accessor :content, :choice
+	attr_reader :height, :vertical
 	include Generic
 	def initialize args 
 		variables_from args
-		@x ||= ($world.last.right + 2 + MARGIN ) or LEFT
+		@x ||= ($world.last.right_end + 2 + MARGIN ) or LEFT
 		@y ||= TOP
 		@width ||= (cols-@x-1)
 		@height ||= lines - TOP - BOTTOM - 2
 		@choice ||= 0		
-		@page ||= 0
+		#@page ||= 0
 		@content ||= []
-		@delimiter ||= $/ if @content.class == Array
-		@content = @content.parse if raw?
+		#@details = []
+		#@vertical = 
+		#@delimiter == $/ #if @content.class == Array
+		case @content
+			when Command
+				@output, @input, @error = Open3.popen3 @content.string
+				read
+				#@content = (@input.read @width).parse
+			when Action
+				@content = @content.run #action
+			when String
+				@content = @content.parse
+			else
+				@content = @content.to_s
+		end until @content.is_a? Array
 		LOG.debug "writer %s %s %s %s" % [@y, @x, @height, @width]
-		super 1000,@raw ? @width : 1000
+#		super (vertical? ? 1000:@height),(vertical? ? @width:1000) 
+		super 1000,1000#@height#),(vertical? ? @width:1000) 
+#		LOG.debug "writer %s %s %s %s" % [top, left, bottom, right_end]
 		work 
 	end
-	def pass dir; $focus.cycle dir, 2, $world.size-1; end
+	def read length=@width; 
+		@content << (@input.read length).parse #if 
+		#@content.class == String
+	end
 	def index; $world.index self; end
+	def vertical?;(list? ? !@break : @break);end
 	def focus?; $focus == index; end
 	def list?; @delimiter == $/; end
-	def raw?; !@delimiter; end
-	def paging?; view.size > @height and @height > 2; end
-	def pageup?; @page > 0 and paging?; end
-	def pagedown?; stop < @end; end
-	def move direction
-		@choice = @choice.cycle direction, 0, view.size-1
-		@page += NEXT if @choice > stop
-		@page += PREVIOUS if @choice < start
-		#work
-	end
+	def short?; @width <= LIMIT; end 
+	
+	def start; (@content[@choice].y - @height/2).min(0) unless @content.empty? ;end
+	def stop; start + @height;end
+	def update;
+		refresh ( start or 0 ),0,@y,@x,@y + @height,@x + @width;
+		#view.each &:detail	
+	end	
+	
+	def pass dir; $focus=$focus.cycle dir,0,$world.size-1;nil;end
+	def right; pass NEXT;work end
+	def left; pass PREVIOUS;work end
+	
+	def move dir; @choice=@choice.cycle dir,0,view.size-1;nil;end
+	def down; move NEXT; end
+	def up; move PREVIOUS; end
+	def forward; move NEXT * @height; end
+	def backward; move PREVIOUS * @height; end
+	
+	def flip; @delimiter = (@delimiter == $/ ? " " : $/); end
+	def less; @raw = false; end
+	def more; @raw = true; end
+	def long; @break = !@break; end
+	
+	def trim; @width = view.longest.length.max LIMIT;	work;	end	
 	def view 
-			unless $filter.empty? #and focus?
-				return @content.select{|i| 
-					i.to_s.downcase.index($filter)}
-			else
-				return @content
-			end if list?	
-		@content
+			return @content if $filter.empty? #or not list?#and focus?
+			@content.select{|item| item.to_s.downcase[$filter]}
 	end	
-	def start; @page*@height;end
-	def stop; (@page+1)*@height;end
-	def update
-		if @height > 2 #list?
-			common={y:stop,x:@width,highlight:focus?}
-			draw "v", common									if pagedown?
-			draw "^", common.merge( y:start )	if pageup?
-			draw " ", common 							unless paging?
-		end
-		refresh start,0, @y, @x, @y+@height, @x+@width#right,bottom
-	end	
-	def work
+	def work#reveal embody prove demonstrate illustrate display evince manifest / engrave draw put assemble join combine arrange form
 		return if LOADED
 		clear 
 		#setpos start,0
-		draw @prefix if @prefix
-		#LOG.debug " > #{self}"
+		@area ||= self
+		@area.draw @prefix if @prefix
+		#return 
+		LOG.debug " working: #{ @content.size } items"
+		#LOG.debug " working: #{ @content.join "\n" } items"
 		#draw $/ if not list? && curx + item.width > width #&& item.width < width
+		pos = 0 
+		column = 0 if list? and @break #short?
 		view.each_with_index do |item,idx|
-			draw @delimiter if @delimiter and curx > 0  
-			item.x,item.y = curx,cury if @raw
-				draw item.symbol, color: :dark unless @raw
-				draw item.to_s, color: item.color,
-					#selection:(@selection ), 
-					highlight: (idx==@choice) and @selection
-				draw (" "+item.more),
-					color: :bright if	list? and @width > LIMIT
-			#end
-		end
-		@end = cury
+			#next unless item
+			@area.draw @delimiter if @delimiter and curx > 0  
+			#item.pos = pos += item.length
+			column += view[ (idx-@height)..idx
+				].longest.length.max LIMIT if cury == @height and column 
+			@area.draw item.symbol, x:column, color: :dark unless @raw
+			@area.draw item.to_s(@full), color: item.color,selection:(
+				@selection ),highlight: (idx==@choice and focus?) and 
+					@selection
+			item.x,item.y = curx,cury #unless list?#if @raw
+			# {x:curx+left+-item.length,y:cury+top+1,width:item.length}
+			#item.detail( x:curx,y:cury,height:0,area:self) unless 
+			#	@break or not list? #or short? #@width <= LIMIT
+		end unless @content.empty?		
 		#box '|', '-' 
-		update
-		self
+		#@end = cury; 
+		update;	#self
 	end
-	#def space; 0..(list? ? @width-curx-2 : -1); end
-	def trim
-		#items = view + [" "," "]
-		@width = view.longest.length.max LIMIT 
-		work
-	end	
-	def add item;	@content << item;work; end
+	
+	def add item;	@content << item; work; end
 	def << (item) 		
-		#LOG.debug " << :#{item}"
+		LOG.debug " << :#{item}"
 		@content.unshift(item) #.flatten!
 		@content.uniq! {|item| item.long }
-		item.save
-		work
+		item.save; work
 	end
+	def run; COMMAND.action; end		
 	def action id=KEY_TAB, x=nil,y=nil #mouse=nil
+		id=KEY_TAB if id == ONE_FINGER
+		id=KEY_SHIFT_TAB if id == TWO_FINGER		
+		
+		return unless activity = Activity[key:id]
+		#begin
+		LOG.debug "action: #{activity}"#target #item				
+		return activity.for(self).run if 
+			methods.include? activity.long.to_sym
+		#rescue NameError #NoMethodError
+		
 		if self == COMMAND
 			return if @content.empty?
 			#LOG.debug "command :#{@content}"
 			target = Command.create(items: @content) 
 		elsif !x and !y
 			target = view[@choice]
-		elsif y==bottom-1 and x == width-1 and pagedown?
-			page NEXT; return
-		elsif y==0 and x == width-1 and pageup?
-			page PREVIOUS; return
+#		elsif y==bottom-1 and x == width-1 and pagedown?
+#			page NEXT; return
+#		elsif y==0 and x == width-1 and pageup?
+#			page PREVIOUS; return
 		elsif list?
 			target = view[y]
 #			LOG.debug "pointer :#{x}, #{y}" 			
 		else
+			#(list? ? y : x) += start
+			#pos,point = 0, (y + start) * @width + x
+			#for item in view
+			#	pos += item.length
+			#	(target = item;break) if item.pos > point
+				#target = view.select{|item| item.pos > point }.first
+			#end
 			for item in view
+				(target = item;break) if item.y >= y and item.x >= x
+			end
 #				LOG.debug "last :#{last.x}, #{last.y}" 
-				last ||= current
-				last.y -= start
-				current.y -= start
+#				last ||= current
+#				last.y -= start
+#				current.y -= start
 				#next unless last #|| false
-				target = last if 
-					( y == current.y and	current.y == last.y and 
-						x.between?(last.x, current.x-1) ) or
-					(y == last.y and x >= last.x ) or
-					(y == current.y and x < current.x ) or 
-					(y > last.y and y < current.y )
+#				target = last if 
+#					( y == current.y and	current.y == last.y and 
+#						x.between?(last.x, current.x-1) ) or
+#					(y == last.y and x >= last.x ) or
+#					(y == current.y and x < current.x ) or 
+#					(y > last.y and y < current.y )
 #				LOG.debug "current :#{current.x}, #{current.y}" 
-				last = current
-			end unless view.size == 1
+#				last = current
+#			end unless view.size == 1
 			#results ||= previous.action( id ) #unless results
 		end
-		LOG.debug "target :#{target}" 
-		STACK << target unless 
-			[ Add, Option, Action ].include? target.class 
-		results = target.action( id )
-		return unless results.is_a? Array#Enumerable
-		$world=$world[0..2]#index]		
-		$filter.clear
-		for result in results
-			next if result.empty?
-			#LOG.debug "result: #{result}"#target #item				
-			$world.last.trim #unless result.empty?		
-			ENV["COLUMNS"] = (cols - $world.last.right - 2 ).to_s
-			$world << Writer.new( content: result, selection:true	) 
+		#if %w[ insert rename  ].include? activity.long
+		#[ Add, Option, Action ].include? target.class 
+		result = activity.for( target ) #if activity.is_a? Command 
+		LOG.debug "target: #{target} > #{result}"
+		result = result.run while result.is_a? Action
+		LOG.debug "target: #{target} > #{result}" 
+		if result 
+			
+			STACK << target #unless 
+			$world=$world[0..2]		
+			$filter.clear
+			
+			trim #unless result.empty?		
+			ENV["COLUMNS"] = (cols - right_end - 2 ).to_s
+			$world << Writer.new( content: result, delimiter:$/, 
+				selection:true	) 
+			$focus = 3#$world.last.index #+ 1
 		end
-		$focus = 3#$world.last.index #+ 1
 	end
 end

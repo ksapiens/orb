@@ -21,12 +21,12 @@ TWO_FINGER = 16384
 class Window 
 
 	attr_accessor :focus #, :height
-	alias :left :begx
+	alias :left_end :begx
 	alias :width :maxx
 	alias :top :begy
 	#alias :height :maxy
 	
-	def right; left + @width - 1; end
+	def right_end; left_end + @width - 1; end
 	def bottom; top + @height - 1; end
 	
 	def mode id

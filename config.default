@@ -9,6 +9,32 @@ BOTTOM = 1
 LIMIT = 12				 	
 TERM = "urxvt -hold -e "
 
+KEYMAP ={ #key	#flag
+	content:					KEY_CTRL_O, 
+	default:					KEY_TAB,# true, 
+	actions:					KEY_SHIFT_TAB,# true,
+	insert:						KEY_CTRL_I, 
+	rename:						KEY_CTRL_N,
+	record:						KEY_CTRL_R,
+	edit:							KEY_CTRL_E, 
+	flag:							KEY_CTRL_F, 
+	set_default:			KEY_CTRL_S, 
+	#set_type_default:	KEY_CTRL_T, 
+	
+	
+	#for writer	
+	backward:					KEY_PPAGE, 
+	forward:					KEY_NPAGE, 
+	up:								KEY_UP, 
+	down:							KEY_DOWN,
+	right:						KEY_RIGHT,  
+	left:							KEY_LEFT,  
+	flip:							KEY_CTRL_D, 
+	less:							KEY_CTRL_L, 
+	more:							KEY_CTRL_M, 
+	long:							KEY_CTRL_B 
+}
+
 F = 1000
 #H = 764
 H = 618
@@ -23,11 +49,17 @@ COLOR = {	#		R			G			B
 	red:				[ H,L,L ],
 	orange:			[ H,M,L ],
 	yellow:			[ H,H,L ],
+	lime:				[ M,H,L ],
 	green:			[ L,H,L ],
+	mint:				[ L,H,M ],	
 	cyan:				[ L,H,H ],
+	azure:			[ L,M,H ],	
 	blue:				[ L,L,H ],
+	violet:			[ M,L,H ],
 	magenta:		[ H,L,H ],
+	rose:				[ H,L,M ],
 	
+	faint:			[ L,L,L ],
 	dark:				[ M,M,M ],
 #	grey:				[ M,M,M ],
 	bright:			[ H,H,H ],
@@ -36,11 +68,12 @@ COLOR = {	#		R			G			B
 TYPE ={
 	Type:				['?', :cyan, 'overview of types'],
 	Item:				['',  :dark, 'all items'],
+	Tag:				['#', :violet, 'items containing a list of items'],
 	
 	Entry:			['/', :orange, 'all files'],
 	Directory:  ['/', :yellow,'files containing files ( folder )'],
-	#Runnable
-	Gram:				['/', :red, 'executable files / apps'],
+	#Runnable Gram 
+	Program:		['/', :red, 'executable files / apps'],
 	Textfile:		['/', :white, 'files containing text characters'],
 	Image:			['/', :blue, 'all image files'],
 	Video:			['/', :cyan, 'all video files'],
@@ -50,20 +83,60 @@ TYPE ={
 	Socketfile:	['/', :magenta, 'all sockets'],
 	Chardevice:	['/', :magenta, 'all character devices'],
 	Blockdevice:['/', :magenta, 'all block devices'],
-	
-	Collection: ['#', :yellow, 'items containing a list of items'],
-	Command:		['>', :magenta, 'sequence of an executable with arguments'],
+
+	Command:		['>', :magenta, 'sequence of a program with arguments'],
 	Option:			['-', :blue, 'options to configure a command'],
 
 	Host:				[':', :green, 'computers on the network'],
-	Page:				[':', :cyan, 'http page from web server'],
-	User:				['@', :green, 'people'],
+	Page:				[':', :azure, 'http page from web server'],
+	Form:				[':', :red, 'input to a host'],
+	User:				['@', :lime, 'people'],
 	Email:			[' ', :white, 'email adresses'],
 	Telephone:	[' ', :blue, 'email adresses'],
 	
 	Add:				['+', :white, ''],
-	Action:			['!', :red, ''],
+	Action:			['!', :rose, 'ruby code'],
 	Text:				[' ', :bright, 'generic string of characters'],
-	Word:				[' ', :white, 'valid string from spoken language']
+	Word:				[' ', :white, 'valid string from spoken language'],
+	Number:			[' ', :mint, 'any number'],
+	Regex:			['*', :blue, 'search pattern']
+}
 
+FUNK = {
+	1 => %w[one wan],
+	2 => %w[too two tu],
+	3 => %w[three],
+	4 => %w[for four],
+	5 => %w[five],
+	6 => %w[six sicks],
+	7 => %w[seven],
+	8 => %w[eight ight],
+	9 => %w[nine ],
+	0 => %w[zero seero],
+	A: %w[ay ey],
+	B: %w[bee be],
+	C: %w[see sea], 
+	D: %w[dee dea],
+	E: %w[ee],
+	F: %w[eff ef],
+	G: %w[gee ge],
+	H: %w[eich],
+	I: %w[ie], 
+	J: %w[jay],
+	K: %w[kay key],
+	L: %w[ell el],
+	M: %w[emm em],
+	N: %w[enn en],
+	O: %w[oh],
+	P: %w[pee pe],
+	Q: %w[cue],
+	R: %w[arr ar],
+	S: %w[ess es],
+	T: %w[tee tea],
+	U: %w[iu you],
+	V: %w[vee ],
+	W: %w[],
+	X: %w[ex],	
+	Y: %w[why],	
+	Z: %w[zet]
 }

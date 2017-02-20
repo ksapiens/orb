@@ -7,24 +7,26 @@
 # copyright 2017 kilian reitmayr
 $LOAD_PATH  << __dir__ #"#{File.dirname __FILE__}/."
 #require 'pry'
+require "helpers.rb"
 require 'logger'
 require 'sequel'
-require "helpers.rb"
+require 'view/terminal'
 
 "~/.orb".mkdir unless "~/.orb/".exists?
 "./config.default".copy "~/.orb/config" unless 
 	"~/.orb/config".exists?
 eval "~/.orb/config".read
 LOG = Logger.new("orb.log")
+DL = Logger.new("db.log")
 FIRST = !"~/.orb/db.sqlite".exists? 
 DB = Sequel.sqlite "~/.orb/db.sqlite".path
-#DB.loggers << LOG
+DB.loggers << DL
 
 if FIRST	
 	puts "first run: data persistence"
 	DB.create_table( :items ) do #objects
   	primary_key :id
-  	foreign_key :default_id
+  	foreign_key :default_id, :items
   	String :type, size: 12 #meaning identity  
 
 		String :symbol, fixed: true, size: 1
@@ -33,11 +35,12 @@ if FIRST
   	String :long #, :unique => true 
   	String :short
   	String :extra
-  	
-  	Integer :count
+#  	String :head
+  	Integer :key
   	#String :found_in #file - for editing
   	#Integer :position
-  	TrueClass :in_stack
+  	
+  	TrueClass :instack
   	DateTime :time
   	unique [ :long, :type ]
 	end 
@@ -49,7 +52,7 @@ if FIRST
 	end 
 end
 require "entities.rb"
-require 'view/terminal'
+
 require "manual.rb"
 require "writer.rb"
 
@@ -61,49 +64,56 @@ NEXT, PREVIOUS = 1, -1
 
 if FIRST
 	#fork do
-	puts "creating essentials"
+	print "\ncreating essentials"
 	DB.transaction do
-		actions = %w[ content add rename set_default set_type_default].map{ |name| Action.create( long:name) }	
+		actions = KEYMAP.map{ |name,key| 
+			Action.create( long:name, key:key) }
 		TYPE.each{ |type,var| Type.create long:type, 
-			short:type.downcase, symbol:var.first, items:actions[0..2],				 color:var[1], extra:var.last, default_id:1 }
+			short:type.downcase, symbol:var.first, items:actions[0..3],
+			color:var[1], extra:var.last, default_id:1 }
 	end; #fork do; 
 	DB.transaction do	
-		puts "creating known entries in PATH"
+#BEGIN					print "\ncreating known entries in PATH\n"
 		for path in ENV["PATH"].split(":")-["."]
-			puts path = path.path
-			`whatis -l -s 1 #{path}/* 2>empty`.scan(
+			print $/ + (path = path.path)
+			`whatis -l -s 1 #{path}/* 2>unknown`.scan(
 				/^(.+) \(1.*- (.+)$/).each do |values|
-					Executable.create long:path +"/"+ values.first,
+					Program.create long:path +"/"+ values.first,
 						short: values.first, extra:values.last rescue next
 			end
 		end
-			
-		puts "creating unknown entries in PATH"
-		for line in "empty".read.lines
-			Executable.create long:line[/^.+:/].chop, short: :name 
-		end; "empty".rm	
+
+		print "\ncreating unknown entries in PATH"
+		for line in "unknown".read.lines
+			Program.create long:line[/^.+:/].chop, short: :name 
+		end; "unknown".rm	
 		#log = ("~/.zsh_history").read.force_encoding(
 		#	"Windows-1254").gsub /^:\s\d*:\d;/, '' if 
 		#	"~/.zsh_history".exists?
-		puts "parsing shell logs"
+		print "\nparsing shell logs"
 		log = ("~/.bash_history").read #if "~/.bash_history".exists?
 		for line in log.split /[\n|]/
 			parts = line.partition " "
-			exe = Executable[short:parts.first]
+			exe = Program[short:parts.first]
 			Command.create( items: [exe.stack]+	
 				parts.last.parse ) if exe rescue next 
 		end if log
 	end#;end
-	puts "creating basic objects"
+#END
+	print "\ncreating basic objects"
+	#Command.create short:"print", items:[Program[short:"cat"]]
+	#%w[ content actions ].each{ |name| Action[long:name].flag }
+	#Type[ short:"option" ].update default:Action[long:"insert"]
+	#Type[ short:"action" ].update default:Action[long:"insert"]
 	Type[ short:"type" ].stack
 	Directory.create( 
-		long: "!'.'.path", short: "current", in_stack: true)
+		long: "!'./'.path", short: "current", instack: true)
 	Directory.create( 
-		long: "!ENV['HOME']", short: "home", in_stack: true )
+		long: "!ENV['HOME']", short: "home", instack: true )
 	Directory.create( long: "/", short: "root", 
-		extra: "beginning of the directory tree", in_stack: true )
+		extra: "beginning of the directory tree", instack: true )
 	Textfile.create( long: "./help.txt".path, short: "help", extra:
-	  "click or tap here or type 'help' and press TAB", in_stack: true )
+	  "click or tap here or type 'help' and press TAB", instack: true )
 #	%w[ ? current home root help ].each{ |item| item.save }
 end
 
@@ -117,14 +127,18 @@ $world = [
 	(HEAD = Writer.new content:[
 		User.new( long: "!ENV['USER']" ),
 		Host.new( long: "!`hostname`.strip" ), 
-		Directory.new( long: "!'.'.path")],
+		Directory[ short: "current" ] ] + 
+		%w[ forward backward long flip less more].map{ |name|
+			Action[ long:name ] },
 		#,short: "!'.'.path[1..-1]")],
-		x: LEFT, y: 0, height:0, delimiter:'', selection:false),
+		x: LEFT, y: 0, height:0 ),
+	#(MODES = Writer.new x:LEFT, y:1, height:0, delimiter:' ',
+	#	content: }),
 	(COMMAND = Writer.new	prefix: ">", x: LEFT, 
-		y: lines-1, height:0, delimiter:' ', selection:false),
-	(STACK = Writer.new content: 
-		Item.where( in_stack: true ).order(:time).reverse.all, 
-	 	x: LEFT, delimiter:$/, selection:true ) ]
+		y: lines-1, height:0, delimiter:' '),
+	(STACK = Writer.new x: LEFT, delimiter:$/, #auto:true,
+		content: Item.where( instack: true).order(:time).reverse.all)
+]
 
 # main class
 class ORB #< Window
@@ -145,7 +159,7 @@ class ORB #< Window
 	end
 	def action id, x, y
 		for area in $world
-			if 	x.between?( area.left, area.right ) && 
+			if 	x.between?( area.left_end, area.right_end ) && 
 					y.between?( area.top, area.bottom+1 )
 				
 				#LOG.debug "e: %s b: %s" % [mouse.eid, mouse.bstate ]
@@ -154,14 +168,17 @@ class ORB #< Window
 			end
 		end
 	end
-	def run
+	def initialize
 		loop do
-			writer = $world[$focus].work
+			(writer = $world[$focus]).work
  			#$counter = 0
-			$world.each( &:update )
+#			$world.each( &:update )
 #			$world.each( &:work )
+			
+    	LOG.debug "focus: #{$focus}\n choice: #{writer.choice} "
     	input = getch #Event.poll 
-			LOG.debug "input :#{input}"
+			LOG.debug "input: #{input} "
+			
 			
     	case input
     		when KEY_MOUSE
@@ -177,38 +194,32 @@ class ORB #< Window
 					halt
 				when KEY_BACKSPACE
 					$filter.chop!
-					
-				when KEY_NPAGE
-					writer.move NEXT * writer.height
-				when KEY_PPAGE
-					writer.move PREVIOUS * writer.height
-				when KEY_DOWN
-					writer.move NEXT 
-				when KEY_UP
-					writer.move PREVIOUS
-				when KEY_RIGHT
-					writer.pass NEXT
-				when KEY_LEFT
-					writer.pass PREVIOUS
-				when KEY_TAB, KEY_SHIFT_TAB, KEY_CTRL_A
-					$filter.clear
-					writer.action input#, *$selection[$choice]#
 				when KEY_RETURN #KEY_ENTER || 
 					COMMAND.action 
         when String
-        	writer.page = 0
+        	#writer.page = 0
         	writer.choice = 0
         	$filter += input
+      #  	COMMAND.draw input #$filter
+        else
+					#if 
+					#$filter.clear
+					
+						#a.for(writer).action
+						writer.action input#, *$selection[$choice]#
     	end
     end
   end
 begin
 #		loop do 
-			ORB.new.run 
+			ORB.new 
 #		end unless LOADED
 end #while loop?
+#rescue
+#	halt
 ensure
 #	LOG.debug "ensure"
+
 	use_default_colors()
   close_screen unless LOADED
 end
