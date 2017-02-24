@@ -10,17 +10,16 @@ LIMIT = 12
 TERM = "urxvt -hold -e "
 
 KEYMAP ={ #key	#flag
+
+	#for item
 	content:					KEY_CTRL_O, 
-	default:					KEY_TAB,# true, 
-	actions:					KEY_SHIFT_TAB,# true,
-	insert:						KEY_CTRL_I, 
+	insert:						KEY_CTRL_A, 
 	rename:						KEY_CTRL_N,
 	record:						KEY_CTRL_R,
 	edit:							KEY_CTRL_E, 
-	flag:							KEY_CTRL_F, 
-	set_default:			KEY_CTRL_S, 
-	#set_type_default:	KEY_CTRL_T, 
-	
+	default:					KEY_TAB,# true, 
+	actions:					KEY_SHIFT_TAB,# true,
+	set_default:			KEY_CTRL_D, 
 	
 	#for writer	
 	backward:					KEY_PPAGE, 
@@ -29,10 +28,14 @@ KEYMAP ={ #key	#flag
 	down:							KEY_DOWN,
 	right:						KEY_RIGHT,  
 	left:							KEY_LEFT,  
-	flip:							KEY_CTRL_D, 
-	less:							KEY_CTRL_L, 
-	more:							KEY_CTRL_M, 
-	long:							KEY_CTRL_B 
+	flip:							KEY_CTRL_F, 
+	less:							KEY_CTRL_Z, 
+	more:							KEY_CTRL_X, 
+	long:							KEY_CTRL_S, 
+	
+	#for orb
+	run:							KEY_RETURN,
+	clear:						KEY_CTRL_C
 }
 
 F = 1000
@@ -92,9 +95,9 @@ TYPE ={
 	Form:				[':', :red, 'input to a host'],
 	User:				['@', :lime, 'people'],
 	Email:			[' ', :white, 'email adresses'],
-	Telephone:	[' ', :blue, 'email adresses'],
+	#Telephone:	[' ', :blue, 'telephone number'],
 	
-	Add:				['+', :white, ''],
+	#Add:				['+', :white, ''],
 	Action:			['!', :rose, 'ruby code'],
 	Text:				[' ', :bright, 'generic string of characters'],
 	Word:				[' ', :white, 'valid string from spoken language'],
@@ -110,7 +113,7 @@ FUNK = {
 	5 => %w[five],
 	6 => %w[six sicks],
 	7 => %w[seven],
-	8 => %w[eight ight],
+	8 => %w[eight ate],
 	9 => %w[nine ],
 	0 => %w[zero seero],
 	A: %w[ay ey],
@@ -120,7 +123,7 @@ FUNK = {
 	E: %w[ee],
 	F: %w[eff ef],
 	G: %w[gee ge],
-	H: %w[eich],
+	H: %w[eich ache aich],
 	I: %w[ie], 
 	J: %w[jay],
 	K: %w[kay key],

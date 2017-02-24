@@ -49,21 +49,6 @@ class String
 	def copy target; FileUtils.copy path, target.path; end
 	def path; gsub(/^~\//, ENV["HOME"]+"/").gsub(/^\.\//,ENV["PWD"]+ "/"); end	
 	def item; Item.new self;end
-	def entry
-		return if self[/cannot open/] or 
-			self[/no read permission/] or self.empty?
-		#LOG.debug self
-		if types = 
-    	type=((%w{directory text audio video image symlink socket chardevice fifo} & 
-    	types[1..2]) + ["entry"] ).first
-			path = self[/^.*:/].chop #[0..-2]    
-    	type = "executable" if path.executable? and 
-    		 not %w{ directory symlink }.include?( type ) 
-    	#type = "config" 
-    	type += "file" if type == "text" 
-    	(eval type.capitalize).new long:Shellwords.escape(path), short: :name
-    end
-  end
   
   def parse raw=true
   	result = []
@@ -79,25 +64,23 @@ class String
 			match = shapes.match this
 			if match 
 				#LOG.debug match#.post_match
-				#before = match.pre_match#.strip
-				#result << Text.new( long:before ) if 
-				#	raw and not before.empty? 
 				type, string = *match.to_h.select{|k,v|v}.first
-				result << Text.new( long:this[0..match.begin(type)-1] )
-				
+				result += this[0..match.begin(type)-1].words
 				#if type == "Entry" 
 					#result << ( `file -i #{string}`.entry or 
 				#	result << Entry.new(long:string) #)
 				#else
-					result << (eval type).new( long: string )#Shellwords.escape(
-						#string) ) 
-				#end 
+				result << (eval type).new( long: string )
+					#Shellwords.escape(
 				this = this[match.end(type)..-1]
 			else					
-				result << Text.new( long:this) if raw and not this.empty? 
+				result += this.words unless this.empty? 
 			end
 		end while match
 		result.flatten 
+	end
+	def words 
+	 	self.split(/([,\n\ ]+)/).map{|word| Text.new( long:word)}
 	end
 end
 		

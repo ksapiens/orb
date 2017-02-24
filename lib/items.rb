@@ -3,8 +3,8 @@
 # 	Items
 #
 # copyright 2017 kilian reitmayr
-require "sequel"
-require "helpers.rb"
+#require "sequel"
+#require "helpers.rb"
 
 class Item < Sequel::Model #element feature bit piece detiail entry point atom thing component molecule fragment grain dot spot particle
 	plugin :timestamps, create: :time, update: :time
@@ -31,58 +31,51 @@ class Item < Sequel::Model #element feature bit piece detiail entry point atom t
 		super args;	end
 	def save args={}
 		#self.class[long:long] or begin
-			print '.'
+			print '.' if FIRST
 			me = super args; 
 			@items.each{ |item| me.add_item(
-				item.id ? item : item.save) } if @items; me	
+				item.id ? item : item.save) } if @items; 
+			@items = nil; me	
 		#end
 	end
 	def find args
-		@items = args.delete( :items ) if args[:items]
+		#@items = args.delete( :items ) if args[:items]
 		super args;	end
-	def to_s full=nil; full ? long : (short or long); end
+	def to_s; (short or long); end
 	def long; super[0] == "!" ? eval(super[1..-1]) : super; end
 	def type; self.class.type; end
 	def color; (super or type.color).to_sym; end
 	def default; (super or type.default).for(self); end
 	def length; to_s.length; end
 	#def type;	Type[ long: self.class.to_s ]; end	
-	def content; end
+	
 	#def more; views[ (@view or 0) ] or ""; end
 	#def cycle; @view = @view.cycle NEXT,0,views.count; end
 	#def views; [extra, (long if short), 
 	#	head ||= long.read(30)].compact; end
 	def description;(extra or "") +
-		((", path: "+long if short) or ""); end
-	def actions; [type] + 
-		type.history.map{ |action| action.for self };end
+		((" "+long if short) or ""); end
+	def actions;([type, default] + %w[content insert rename edit].map{ |name| Action[long:name].for self } + 
+		type.history.map{ |action| action.for self }).uniq ;end
 	def symbol; super or self.class.type.symbol; end
+	#def symbol; long == "Type" ? super : self.class.type.symbol; end
 	def insert; COMMAND.add self; nil; end
-	def rename; short = COMMAND.getstr; save; end
-	def stack; self.update instack:true; end
+	def rename; echo; short = COMMAND.getstr; noecho; save; end
+	def stack; self.update in_stack:true;self; end
 	def edit; end
-	def flag; self.symbol="<"; save;nil; end
+	#def flag; self.symbol="<"; save;nil; end
 	def record; key = getch;save; end
 	def detail args# = {}
 		LOG.debug args
 		@detail.work if @detail
-		@detail ||= Writer.new( args.merge( prefix:" < ", content:default) ); end
-	#def action id=KEY_TAB
-		
-		#case id
-			#when KEY_TAB, ONE_FINGER
-			#	(default or self.class.type.default).action id
-			#when KEY_SHIFT_TAB, TWO_FINGER
-			#	[ actions ]#self.class.actions( self ) +
-			#else
-	#		a=Activity[key:id]
-	#			LOG.debug "action #{a}"
-	#			a.action		
-		#end
-	#end
+		@detail ||= Writer.new( args.merge( prefix:" < ", content:description) ); end
+	def content; end; 
+	def set_default; end
 end
 class Type < Item
-	def content; [ Add.new(long:long) ] + eval(long).all; end
+#	def content; [ Add.new(long:long) ] + eval(long).all; end
+	#def symbol; ;end
+	def content; eval(long).all; end
 	def insert id=nil
 		COMMAND.content = [ Text.new(long.to_s + " : ") ]
 		item = eval(long).new(long:COMMAND.getstr)
@@ -94,6 +87,8 @@ end
 class Activity < Item; 
 	def flag; symbol=(@view = !@view) ? "<" : type.symbol;save;end
 	def content; run; end
+	def actions;[Action[long:"set_default record"].for(self)] + super; end
+	def set_default; @item.type.default = self; end
 end
 class Action < Activity
 	def for item; @item = item; self; end
@@ -101,27 +96,32 @@ class Action < Activity
 end
 class Command < Activity
 	def self.create args
-	#	parts = 
+		last = args[:items].pop unless 
+	  	args[:items].last.is_a?(Option) or 
+	  	args[:items].size == 1
 		args[:long] = args[:items].join unless args[:long]
-		self[ long:args[:long] ] or begin
+		command = self[ long:args[:long] ] or begin
 			#args[:items].first.add_history( 
 	  	first = args[:items].first
-	  	last = args[:items].last unless 
-	  		args[:items].last.is_a?(Option) or 
-	  		args[:items].size == 1
-			command = super args #)Command.find_or_create(long:parts.join,items:parts)
+			command = super args 
+			#)Command.find_or_create(long:parts.join,items:parts)
 			first.add_history command
+			#last.add_history command if last
 			last.type.add_history command if last
 			command
 		end
+		command.for last
 	end
 
 	def extra; items.map(&:long).join ' '; end
 	#def insert; COMMAND.content = items;COMMAND.work; end
 	def for item
-		@combined = items[0..-2]+[item]
-		long=items[0..-2].join; self
+		return self unless item
+		@combined = items + [@item = item]
+		#long = items.join; 
+		self
 	end 
+	def run; self; end
 	def string #LOG.debug "command: " +
 		(@combined or items).map(&:long).join ' '
 	end
@@ -129,8 +129,8 @@ end
 
 
 
-class Add < Item
-end
+#class Add < Item
+#end
 class Text < Item;end
 class Word < Text; end
 class Boolean < Text; 

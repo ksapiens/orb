@@ -7,10 +7,11 @@
 # copyright 2017 kilian reitmayr
 $LOAD_PATH  << __dir__ #"#{File.dirname __FILE__}/."
 #require 'pry'
-require "helpers.rb"
+require "lib/helpers"
+require 'view/terminal'
 require 'logger'
 require 'sequel'
-require 'view/terminal'
+require 'open3'
 
 "~/.orb".mkdir unless "~/.orb/".exists?
 "./config.default".copy "~/.orb/config" unless 
@@ -40,7 +41,7 @@ if FIRST
   	#String :found_in #file - for editing
   	#Integer :position
   	
-  	TrueClass :instack
+  	TrueClass :in_stack
   	DateTime :time
   	unique [ :long, :type ]
 	end 
@@ -51,10 +52,9 @@ if FIRST
   	foreign_key :second_id, :items
 	end 
 end
-require "entities.rb"
-
-require "manual.rb"
-require "writer.rb"
+require "lib/items"
+#require "manual.rb"
+require "lib/writer"
 
 def debug?; $*.include? "-d"; end
 def loop?; $*.include? "-l"; end
@@ -69,7 +69,7 @@ if FIRST
 		actions = KEYMAP.map{ |name,key| 
 			Action.create( long:name, key:key) }
 		TYPE.each{ |type,var| Type.create long:type, 
-			short:type.downcase, symbol:var.first, items:actions[0..3],
+			short:type.downcase, symbol:var.first,#items:actions[0..4],
 			color:var[1], extra:var.last, default_id:1 }
 	end; #fork do; 
 	DB.transaction do	
@@ -107,14 +107,15 @@ if FIRST
 	#Type[ short:"action" ].update default:Action[long:"insert"]
 	Type[ short:"type" ].stack
 	Directory.create( 
-		long: "!'./'.path", short: "current", instack: true)
+		long: "!'./'.path", short: "current", in_stack: true)
 	Directory.create( 
-		long: "!ENV['HOME']", short: "home", instack: true )
+		long: "!ENV['HOME']", short: "home", in_stack: true )
 	Directory.create( long: "/", short: "root", 
-		extra: "beginning of the directory tree", instack: true )
+		extra: "beginning of the directory tree", in_stack: true )
 	Textfile.create( long: "./help.txt".path, short: "help", extra:
-	  "click or tap here or type 'help' and press TAB", instack: true )
-#	%w[ ? current home root help ].each{ |item| item.save }
+	  "click or tap here or type 'help' and press TAB", 
+	  in_stack: true )
+	FIRST = false
 end
 
 init unless LOADED
@@ -128,16 +129,16 @@ $world = [
 		User.new( long: "!ENV['USER']" ),
 		Host.new( long: "!`hostname`.strip" ), 
 		Directory[ short: "current" ] ] + 
-		%w[ forward backward long flip less more].map{ |name|
+		%w[ forward backward long flip less more run].map{ |name|
 			Action[ long:name ] },
 		#,short: "!'.'.path[1..-1]")],
-		x: LEFT, y: 0, height:0 ),
+		x: LEFT, y: 0, height:0, delimiter:'' ),
 	#(MODES = Writer.new x:LEFT, y:1, height:0, delimiter:' ',
 	#	content: }),
-	(COMMAND = Writer.new	prefix: ">", x: LEFT, 
+	(COMMAND = Writer.new	prefix: ">", x: LEFT, raw:true,
 		y: lines-1, height:0, delimiter:' '),
 	(STACK = Writer.new x: LEFT, delimiter:$/, #auto:true,
-		content: Item.where( instack: true).order(:time).reverse.all)
+		content: Item.where(in_stack: true).order(:time).reverse.all)
 ]
 
 # main class
@@ -146,80 +147,78 @@ class ORB #< Window
 		#$stack << DEFAULT
 	#	$world << Writer.new content: "help.txt".read
 	#end
-  def colortest
-		clear
+  def colortest; clear
 		COLOR.each_with_index do |color,i|
 			setpos i,LEFT
 			attron color_pair i
 			addstr "#{color[0]} - #{color_content i}"
-		end
-		getch 
-		clear
-		$world.each( &:work )
+		end; addstr (c=getch).to_s + " . " until c==KEY_ESC
+		clear; $world.each( &:work )
 	end
-	def action id, x, y
+	def click mouse #id, x, y
 		for area in $world
-			if 	x.between?( area.left_end, area.right_end ) && 
-					y.between?( area.top, area.bottom+1 )
-				
-				#LOG.debug "e: %s b: %s" % [mouse.eid, mouse.bstate ]
-				area.action id, x - area.left, y - area.top
-				break
+			if mouse.x.between?( area.left_end, area.right_end ) and
+				 mouse.y.between?( area.top, area.bottom )
+			#LOG.debug "eid: %s bstate: %s" % [mouse.eid,mouse.bstate]
+				id = KEY_TAB if mouse.bstate == ONE_FINGER
+				id = KEY_SHIFT_TAB if mouse.bstate == TWO_FINGER
+				area.action Activity[key:id], 
+					mouse.x - area.left_end, mouse.y - area.top
+				return
 			end
 		end
 	end
+	def run; COMMAND.action; end
+	def clear; COMMAND.content.clear; end			
 	def initialize
 		loop do
 			(writer = $world[$focus]).work
- 			#$counter = 0
 #			$world.each( &:update )
-#			$world.each( &:work )
-			
     	LOG.debug "focus: #{$focus}\n choice: #{writer.choice} "
     	input = getch #Event.poll 
 			LOG.debug "input: #{input} "
-			
-			
     	case input
     		when KEY_MOUSE
-    			mouse = getmouse
-    			action mouse.bstate, mouse.x, mouse.y
+    			click getmouse
 				when KEY_ESC || KEY_EXIT
-        	exit
+        	exit#-program
 				when KEY_F12
 					colortest
-				when KEY_F1
-					help
-				when KEY_F2
-					halt
+#				when KEY_F1
+#					help
+#				when KEY_F2
+#					halt
 				when KEY_BACKSPACE
 					$filter.chop!
-				when KEY_RETURN #KEY_ENTER || 
-					COMMAND.action 
+				when KEY_SPACE
+					#COMMAND.deleteln
+					COMMAND.add $filter.parse.first #Text.new( long:
         when String
-        	#writer.page = 0
         	writer.choice = 0
         	$filter += input
-      #  	COMMAND.draw input #$filter
+        	#Curses.draw input #$filter
+        	COMMAND.draw input
+        	COMMAND.update
         else
-					#if 
-					#$filter.clear
-					
-						#a.for(writer).action
-						writer.action input#, *$selection[$choice]#
+        	next unless activity = Activity[key:input]		
+        	if activity.is_a? Action and 
+        		methods.include? activity.long.to_sym
+        		activity.for(self).run 
+        	else
+						writer.action activity#, *$selection[$choice]#
+					end
     	end
     end
   end
 begin
 #		loop do 
-			ORB.new 
+			ORB.new #rescue next
 #		end unless LOADED
 end #while loop?
 #rescue
 #	halt
 ensure
 #	LOG.debug "ensure"
-
-	use_default_colors()
+#	use_default_colors()
   close_screen unless LOADED
 end

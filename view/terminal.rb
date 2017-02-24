@@ -13,21 +13,23 @@ include Curses
 KEY_ESC = 27
 KEY_TAB = 9
 KEY_SHIFT_TAB = 353
-KEY_RETURN = 10
-
+KEY_RETURN = 13
+KEY_SPACE = " "
 ONE_FINGER = 4
 TWO_FINGER = 16384
 
 class Window 
 
-	attr_accessor :focus #, :height
-	alias :left_end :begx
-	alias :width :maxx
-	alias :top :begy
+	#attr_accessor :x, :y#, :width, :height #focus #, :height
+	#alias :left_end :begx
+	#alias :width :maxx
+	#alias :top :begy
 	#alias :height :maxy
 	
-	def right_end; left_end + @width - 1; end
-	def bottom; top + @height - 1; end
+	def top; @y; end
+	def left_end; @x; end
+	def right_end; @x + @width ; end
+	def bottom; @y + @height ; end
 	
 	def mode id
 		attron( id )
@@ -39,9 +41,9 @@ class Window
 		args[:color] ||= :white
 		args[:color] = COLOR.keys.index(args[:color]) if 
 			args[:color].is_a? Symbol
-		attron color_pair args[:color]
+		attron color_pair args[:color] 
 		#COLOR.keys.index(args[:color]||:white) 
-		setpos args[:y]||0 ,args[:x]||0 if args[:y] || args[:x]
+		setpos args[:y]||cury ,args[:x]||curx if args[:y] || args[:x]
 		#/^(.{#{index}})(.{#{$filter.length}})(.*)$/
 		match = /(#{$filter})/i.match(string) if not $filter.empty?
 #			args[:selection] and 
@@ -68,9 +70,9 @@ def init
 	`tabs 2`
 	init_screen
 	start_color
-	#nonl
+	nonl
 	#cbreak
-	#noraw
+	raw
 	noecho
   curs_set 0
   mousemask(ALL_MOUSE_EVENTS)
