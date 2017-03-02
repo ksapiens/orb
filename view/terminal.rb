@@ -3,7 +3,7 @@
 # 
 # 	Terminal Frontend 
 #
-# copyright 2016 kilian reitmayr
+# copyright 2017 kilian reitmayr
 
 $LOAD_PATH << "#{File.dirname __FILE__}/.."
 require 'curses'
@@ -14,6 +14,7 @@ KEY_ESC = 27
 KEY_TAB = 9
 KEY_SHIFT_TAB = 353
 KEY_RETURN = 13
+KEY_CTRL_SPACE = 0
 KEY_SPACE = " "
 ONE_FINGER = 4
 TWO_FINGER = 16384

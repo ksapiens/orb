@@ -107,9 +107,9 @@ if FIRST
 	#Type[ short:"action" ].update default:Action[long:"insert"]
 	Type[ short:"type" ].stack
 	Directory.create( 
-		long: "!'./'.path", short: "current", in_stack: true)
+		long: "!ruby:'./'.path", short: "current", in_stack: true)
 	Directory.create( 
-		long: "!ENV['HOME']", short: "home", in_stack: true )
+		long: "!ruby:ENV['HOME']", short: "home", in_stack: true )
 	Directory.create( long: "/", short: "root", 
 		extra: "beginning of the directory tree", in_stack: true )
 	Textfile.create( long: "./help.txt".path, short: "help", extra:
@@ -126,8 +126,8 @@ $filter=""
 
 $world = [ 
 	(HEAD = Writer.new content:[
-		User.new( long: "!ENV['USER']" ),
-		Host.new( long: "!`hostname`.strip" ), 
+		User.new( long: "!ruby:ENV['USER']" ),
+		Host.new( long: "!ruby:`hostname`.strip" ), 
 		Directory[ short: "current" ] ] + 
 		%w[ forward backward long flip less more run].map{ |name|
 			Action[ long:name ] },
@@ -136,7 +136,7 @@ $world = [
 	#(MODES = Writer.new x:LEFT, y:1, height:0, delimiter:' ',
 	#	content: }),
 	(COMMAND = Writer.new	prefix: ">", x: LEFT, raw:true,
-		y: lines-1, height:0, delimiter:' '),
+		y: lines-1, height:0, delimiter:' ', selection:false ),
 	(STACK = Writer.new x: LEFT, delimiter:$/, #auto:true,
 		content: Item.where(in_stack: true).order(:time).reverse.all)
 ]
@@ -169,14 +169,15 @@ class ORB #< Window
 		end
 	end
 	def run; COMMAND.action; end
-	def clear; COMMAND.content.clear; end			
+	def clear; COMMAND.content.clear; COMMAND.work; end			
 	def initialize
 		loop do
 			(writer = $world[$focus]).work
+			#COMMAND.work
 #			$world.each( &:update )
-    	LOG.debug "focus: #{$focus}\n choice: #{writer.choice} "
+    	#LOG.debug "focus: #{$focus}\n choice: #{writer.choice} "
     	input = getch #Event.poll 
-			LOG.debug "input: #{input} "
+			#LOG.debug "input: #{input} "
     	case input
     		when KEY_MOUSE
     			click getmouse
@@ -190,9 +191,19 @@ class ORB #< Window
 #					halt
 				when KEY_BACKSPACE
 					$filter.chop!
+					#COMMAND.work
+					COMMAND.backspace#delch
+				when KEY_CTRL_SPACE 
+					$filter += " "
 				when KEY_SPACE
 					#COMMAND.deleteln
-					COMMAND.add $filter.parse.first #Text.new( long:
+					next if $filter.empty?
+					type = Type[symbol:$filter[0]] 
+					name = $filter.dup
+					$filter.clear	
+					COMMAND.add type ? 
+						eval(type.long).new(long:name) :
+						name.parse.first #Text.new( long:
         when String
         	writer.choice = 0
         	$filter += input

@@ -1,30 +1,25 @@
- <= all files
- <= user directory
- <= current working directory
- <= all executables 
- <= all types
     
-    O.rb 1.0
-
-                           /files       words      code
-                    red     executables verbs      methods
-    * collection    orange  binary      
-    ? type          yellow	directories objects    classes
-    @ people        green   image       pronouns   operators
-    : hosts         cyan    video                  string
-    - option        blue    audio       adjectives variables
-    + adding        magenta special     number     number
-    > command       white   textfiles              special
-    # tag           rose    executable text
-    . hidden
-
+     OOO     O
+    O   O    O
+    O   O OO OO          
+     OOO  O  OO
+                    
+    / file
+    ? type          
+    @ people        
+    : hosts         
+    - option        
+    > command       
+    # tag           
+    ! action
+		
     ctrl-a add
-    ctrl-z toggle long / short in list
-                  less / more  in text
+    ctrl-z less 
+    ctrl-x more  
+    ctrl-s toggle long / short listing
     ctrl-r rename
     ctrl-d set default
 
-    F1	help
     ESC exit
 
     keyboard: type in your choice,, 

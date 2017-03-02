@@ -3,7 +3,7 @@
 # 
 # 	Helpers
 #
-# copyright 2016 kilian reitmayr
+# copyright 2017 kilian reitmayr
 require 'fileutils'
 require 'shellwords'
 require 'pry'
@@ -19,7 +19,6 @@ module Generic
 		args.each{ |name, value| 
 			instance_variable_set "@"+name.to_s, value }
 #		for 
-#			
 			#bind.
 			#local_variable_set key.to_s, value
 #		end	#if args.class == Hash	
@@ -44,11 +43,11 @@ class String
  	#"\e[#{30+n}m#{self}\e[0m"
  	
 	def file mode="r"; open path, mode; end
-	def read cap=nil; cap ? file.read( cap ) : file.read; rescue; end
+	def read cap=nil;cap ? file.read( cap ) : file.read;rescue; end
 	def write content; f=file("w");f.write content;f.close; end
 	def copy target; FileUtils.copy path, target.path; end
 	def path; gsub(/^~\//, ENV["HOME"]+"/").gsub(/^\.\//,ENV["PWD"]+ "/"); end	
-	def item; Item.new self;end
+	#def item; Item.new self;end
   
   def parse raw=true
   	result = []
@@ -60,7 +59,7 @@ class String
 		#shapes = /@^(https?|ftp)://[^\s/$.?#].[^\s]*$@iS/
 		this = self
 		begin
-			shapes = %r[\W(?<Option>--?\w[\w-]+)\W|\W(?<Entry>\/[^:\s]+)\W]
+			shapes = %r[\s(?<Option>-[\w-]+)\s|\s(?<Entry>\/[^'":\s]+)\s|>(?<Word>[^<>])<|(?<Url><a .*<\/a>)|(?<Form><form .*<\/form>)]m
 			match = shapes.match this
 			if match 
 				#LOG.debug match#.post_match

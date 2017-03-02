@@ -3,8 +3,6 @@
 # 	Items
 #
 # copyright 2017 kilian reitmayr
-#require "sequel"
-#require "helpers.rb"
 
 class Item < Sequel::Model #element feature bit piece detiail entry point atom thing component molecule fragment grain dot spot particle
 	plugin :timestamps, create: :time, update: :time
@@ -14,7 +12,8 @@ class Item < Sequel::Model #element feature bit piece detiail entry point atom t
   many_to_many :items, class: self, join_table: :relations, 
   	left_key: :first_id, right_key: :second_id
 	def self.descendants
-  	ObjectSpace.each_object(Class).select{ |klass| klass < self }
+  	ObjectSpace.each_object(Class).select{|klass| klass < self}+
+  	[self]
   end
 	def self.type; @type ||= Type[ long: self.to_s ];end	
 
@@ -42,7 +41,7 @@ class Item < Sequel::Model #element feature bit piece detiail entry point atom t
 		#@items = args.delete( :items ) if args[:items]
 		super args;	end
 	def to_s; (short or long); end
-	def long; super[0] == "!" ? eval(super[1..-1]) : super; end
+	def long;super.start_with?("!ruby:") ? eval(super[6..-1]) : super; end
 	def type; self.class.type; end
 	def color; (super or type.color).to_sym; end
 	def default; (super or type.default).for(self); end
@@ -53,8 +52,7 @@ class Item < Sequel::Model #element feature bit piece detiail entry point atom t
 	#def cycle; @view = @view.cycle NEXT,0,views.count; end
 	#def views; [extra, (long if short), 
 	#	head ||= long.read(30)].compact; end
-	def description;(extra or "") +
-		((" "+long if short) or ""); end
+	def description;(extra or ""); end
 	def actions;([type, default] + %w[content insert rename edit].map{ |name| Action[long:name].for self } + 
 		type.history.map{ |action| action.for self }).uniq ;end
 	def symbol; super or self.class.type.symbol; end
@@ -77,7 +75,8 @@ class Type < Item
 	#def symbol; ;end
 	def content; eval(long).all; end
 	def insert id=nil
-		COMMAND.content = [ Text.new(long.to_s + " : ") ]
+		#COMMAND#.content = [ Text.new(long.to_s + " : ") ]
+		echo
 		item = eval(long).new(long:COMMAND.getstr)
 		STACK << item
 		item.content
@@ -144,27 +143,21 @@ class Entry < Item
 			args[:short] == :name
 		super args #path.path, short#.gsub /$\//, ''
 	end
+	def description; super + ((" "+long if short) or ""); end
 end
 class Directory < Entry
 	def content 
-#		files,directories = [],[] #@entries = { right: [], down: [] }
-		#result = []
 		`file -i #{long}/*`.each_line.map{ |line| 
 			next unless match = /^(.+):\s*(.+)\/(.+);.*$/.match(line)
 			name,type,sub = *match.captures
 		  sub = "program" if name.executable? and
 		  	(%w{directory symlink} & [type, sub]).empty?
-		  #Entry.descendants.select( |c| [ sub, type, "entry" 
-		  #	].include? c.to_s.downcase ).first
 		  type += "file" if type == "text" 
-		  [ sub, type, "entry" ].map{ |type| ( (eval type.capitalize).new(long:name,short: :name)) rescue next }.compact.first 	  
+		  klass = Entry.descendants.select{ |c| [ sub, type, "entry" 
+		  	].include? c.to_s.downcase }.first
+		  klass.new(long:name,short: :name)
+		  #[ sub, type, "entry" ].map{ |type| ( (eval type.capitalize).new(long:name,short: :name)) if Entry.descendants.include? type.capitalize }.compact.first 	  
 		}.compact
-		 #entry).compact
-    	#(entry.is_a?(Directory) ? directories : files ) << 
-    	#	entry if entry
- #   end
-#		[directories, files]
-		#result
 	end
 end
 
@@ -218,8 +211,8 @@ class Tag < Item
 end
 
 class User < Item; end
-class Email < Item; end
-class Phone < Item; end
+#class Email < Item; end
+#class Phone < Item; end
+class Url < Item; end
 class Host < Item; end
-class Page < Item; end
 class Form < Item; end

@@ -91,7 +91,8 @@ TYPE ={
 	Option:			['-', :blue, 'options to configure a command'],
 
 	Host:				[':', :green, 'computers on the network'],
-	Page:				[':', :azure, 'http page from web server'],
+	#Url:				[':', :azure, 'http page from web server'],
+	Url:				[':', :azure, 'resource on a web host'],
 	Form:				[':', :red, 'input to a host'],
 	User:				['@', :lime, 'people'],
 	Email:			[' ', :white, 'email adresses'],
