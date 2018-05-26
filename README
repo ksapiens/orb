@@ -1,9 +1,12 @@
     
-     OOO     O
-    O   O    O
-    O   O OO OO          
-     OOO  O  OO
-                    
+	ORB - Omniscient Rescource Browser
+
+	.. is many things:
+
+	- a text shell / user interface that can be operated by both keyboard and pointer devices
+	- a smart pager that understands and remembers its content
+	- an index database containing everything it processed and the history of bash/zsh 
+	
     / file
     ? type          
     @ people        
