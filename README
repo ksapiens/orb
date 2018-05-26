@@ -1,19 +1,19 @@
     
-	ORB - Omniscient Resource Browser <beta>
+  ORB - Omniscient Resource Browser <beta>
 	
-	is a combination of:
+  is a combination of:
 	
-		- a text shell that can be operated by both keyboard and pointer devices
-		- a smart pager that understands and remembers its content
-		- a database containing everything it processed and the history of bash/zsh 
+    - a text shell that can be operated by both keyboard and pointer devices
+    - a smart pager that understands and remembers its content
+    - a database containing everything it processed and the history of bash/zsh 
 	
-	Requirements:
+  Requirements:
 
-		- ncurses
-		- sqlite
-		- sequel
+    - ncurses
+    - sqlite
+    - sequel
 
-	Objects:
+  Objects:
 	
     / file
     ? type          
@@ -24,7 +24,7 @@
     # tag           
     ! action
 
-	Keybindings:
+  Keybindings:
 	
     ctrl-a add
     ctrl-z less 
@@ -35,7 +35,7 @@
 
     ESC exit
 
-	Operation:
+  Operation:
 	
     keyboard: command line typing
               press Tab for default
