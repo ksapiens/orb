@@ -3,9 +3,9 @@
 
 	.. is many things:
 
-	- a text shell / user interface that can be operated by both keyboard and pointer devices
+	- a text shell that can be operated by both keyboard and pointer devices
 	- a smart pager that understands and remembers its content
-	- an index database containing everything it processed and the history of bash/zsh 
+	- an database containing everything it processed and the history of bash/zsh 
 	
     / file
     ? type          
