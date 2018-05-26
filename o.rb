@@ -1,11 +1,18 @@
 #!/usr/bin/env ruby
-
-# ORB - Omnipercipient Resource Browser
-# 
-# 	Launcher
+# 	 ORB - Omniscient Resource Browser, Launcher
+#    Copyright (C) 2018 Kilian Reitmayr <reitmayr@gmx.de>
 #
-# copyright 2017 kilian reitmayr
-$LOAD_PATH  << __dir__ #"#{File.dirname __FILE__}/."
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License, version 2 
+# 	 as published by the Free Software Foundation
+#    
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.	
+#
+
+$LOAD_PATH  << __dir__ 
 #require 'pry'
 require "lib/helpers"
 require 'view/terminal'
@@ -13,7 +20,7 @@ require 'logger'
 require 'sequel'
 require 'open3'
 
-"~/.orb".mkdir unless "~/.orb/".exists?
+"~/.orb/".mkdir unless "~/.orb/".exists?
 "./config.default".copy "~/.orb/config" unless 
 	"~/.orb/config".exists?
 eval "~/.orb/config".read
@@ -24,7 +31,7 @@ DB = Sequel.sqlite "~/.orb/db.sqlite".path
 DB.loggers << DL
 
 if FIRST	
-	puts "first run: data persistence"
+	puts "first run: database setup"
 	DB.create_table( :items ) do #objects
   	primary_key :id
   	foreign_key :default_id, :items
@@ -53,7 +60,6 @@ if FIRST
 	end 
 end
 require "lib/items"
-#require "manual.rb"
 require "lib/writer"
 
 def debug?; $*.include? "-d"; end
@@ -125,6 +131,8 @@ $focus,$choice,$counter = 2,0,0
 $filter=""
 
 $world = [ 
+	(COMMAND = Writer.new	prefix: ">", x: LEFT, raw:true,
+		y: lines-1, height:0, delimiter:' ', selection:false ),
 	(HEAD = Writer.new content:[
 		User.new( long: "!ruby:ENV['USER']" ),
 		Host.new( long: "!ruby:`hostname`.strip" ), 
@@ -135,8 +143,6 @@ $world = [
 		x: LEFT, y: 0, height:0, delimiter:'' ),
 	#(MODES = Writer.new x:LEFT, y:1, height:0, delimiter:' ',
 	#	content: }),
-	(COMMAND = Writer.new	prefix: ">", x: LEFT, raw:true,
-		y: lines-1, height:0, delimiter:' ', selection:false ),
 	(STACK = Writer.new x: LEFT, delimiter:$/, #auto:true,
 		content: Item.where(in_stack: true).order(:time).reverse.all)
 ]
@@ -172,11 +178,10 @@ class ORB #< Window
 	def clear; COMMAND.content.clear; COMMAND.work; end			
 	def initialize
 		loop do
-			(writer = $world[$focus]).work
-			#COMMAND.work
-#			$world.each( &:update )
+			(writer = $world[$focus]).update#.work
     	#LOG.debug "focus: #{$focus}\n choice: #{writer.choice} "
     	input = getch #Event.poll 
+    	writer.update
 			#LOG.debug "input: #{input} "
     	case input
     		when KEY_MOUSE
@@ -185,16 +190,16 @@ class ORB #< Window
         	exit#-program
 				when KEY_F12
 					colortest
-#				when KEY_F1
-#					help
 #				when KEY_F2
 #					halt
+				when KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
+					writer.move input 
 				when KEY_BACKSPACE
 					$filter.chop!
-					#COMMAND.work
 					COMMAND.backspace#delch
-				when KEY_CTRL_SPACE 
-					$filter += " "
+					writer.work
+				#when 
+				#	$filter += " "
 				when KEY_SPACE
 					#COMMAND.deleteln
 					next if $filter.empty?
@@ -204,12 +209,13 @@ class ORB #< Window
 					COMMAND.add type ? 
 						eval(type.long).new(long:name) :
 						name.parse.first #Text.new( long:
-        when String
+        when String, KEY_CTRL_SPACE 
         	writer.choice = 0
-        	$filter += input
+        	$filter += ((" " if input==KEY_CTRL_SPACE ) or input)
         	#Curses.draw input #$filter
         	COMMAND.draw input
         	COMMAND.update
+        	writer.work
         else
         	next unless activity = Activity[key:input]		
         	if activity.is_a? Action and 
