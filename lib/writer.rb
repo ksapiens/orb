@@ -1,8 +1,15 @@
-# ORB - Omnipercipient Resource Browser
-# 
-# 	Writer
+# 	 ORB - Omniscient Resource Browser, Writer
+#    Copyright (C) 2018 Kilian Reitmayr <reitmayr@gmx.de>
 #
-# copyright 2017 kilian reitmayr
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License, version 2 
+# 	 as published by the Free Software Foundation
+#    
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.	
+#
 
 class Writer < Pad #Space source #Wand staff pen pencil quill / scribe 
 	attr_accessor :content, :choice
@@ -52,29 +59,47 @@ class Writer < Pad #Space source #Wand staff pen pencil quill / scribe
 	def focus?; $focus == index; end
 	def list?; @delimiter == $/; end
 	def short?; @width <= LIMIT; end 
-	
-	def pass dir; $focus=$focus.cycle dir,0,$world.size-1;nil;end
-	def right; pass NEXT;work end
-	def left; pass PREVIOUS;work end
-	
-	def move dir; @choice=@choice.cycle dir,0,view.size-1;nil;end
-	def down; move NEXT; end
-	def up; move PREVIOUS; end
-	def forward; #move NEXT * @height; 
-		@choice = (index_at view[@choice].x,view[@choice].y + 
-			@height ).max( view.size - 1) or view.size-1; end
-	def backward; #move PREVIOUS * @height; 
-		@choice = (index_at view[@choice].x,view[@choice].y -
-			@height ).min(0); end
-	
-	def flip; @delimiter = (@delimiter == $/ ? " " : $/); end
+	def raw?; @raw; end
+	def pass dir; $focus=$focus.cycle dir,0,$world.size-1
+		$world[$focus].update; nil;end
+	def step dir;@choice=@choice.cycle dir,0,view.size-1;nil;end
+	def move key
+		current.draw self if current
+		case key
+			when KEY_RIGHT 
+				vertical? ? pass( NEXT ) : step( NEXT )
+			when KEY_DOWN
+				vertical? ? step( NEXT ) : pass( NEXT )
+			when KEY_LEFT
+				vertical? ? pass( PREVIOUS ) : step( PREVIOUS )
+			when KEY_UP
+				vertical? ? step( PREVIOUS ) : pass( PREVIOUS )
+		end
+		update
+		#LOG.debug($focus)
+		
+	end
+	def forward; current.draw self if current 
+		@choice = (index_at current.x,current.y + 
+			@height ).max( view.size - 1) or view.size-1; 
+		update; end
+	def backward; current.draw self if current
+		@choice = (index_at current.x,current.y -
+			@height ).min(0); update; end
+	def flip; @delimiter = (@delimiter == $/ ? " " : $/);resize;end
 	def less; @raw,@delimiter = false,$/; end
 	def more; @raw,@delimiter = true,''; end
-	def long; @break = !@break; end
-	
-	def start; (@content[@choice].y - @height/2).min(0) unless @content.empty? ;end
+	def long; @break = !@break;resize;end
+	def resize
+		$world = $world[0..index]
+		vertical? ? super( 1000, @width = cols-@x) : 
+			super(@height, 1000);	work;	end
+	def start; (current.y - @height/2).min(0) unless 
+		view.empty? ;end
 	def stop; start + @height;end
+	def current; view[@choice]; end
 	def update;
+		current.draw self, true if current and focus?
 		refresh ( start or 0 ),0,@y,@x,@y + @height,@x + @width;
 		#view.each &:detail	
 	end	
@@ -100,20 +125,21 @@ class Writer < Pad #Space source #Wand staff pen pencil quill / scribe
 		view.each_with_index do |item,idx|
 			#next unless item
 			#LOG.debug " draw #{ item }"
+			
 			@area.draw @delimiter if @delimiter and curx > 0  
 			if cury == @height and column 
 				column += view[ (idx-@height)..idx
 					].longest.length.max LIMIT 
 				setpos 0,column
 			end
-			
 			@area.draw item.symbol, x:column, color: :dark unless @raw
+			item.x,item.y = curx,cury #unless list?#if @raw
 			@area.draw (@raw ? item.long : item.to_s)[0..@width-curx-2],				color:item.color,	selection:(@selection),highlight:(
 				idx==@choice and focus?)
 			@area.draw " < "+item.description[0..@width-curx-4], 
 				color: :bright unless curx > @width-2 or 
 					@raw or column or short? or not list?
-			item.x,item.y = curx,cury #unless list?#if @raw
+			
 			
 			# {x:curx+left+-item.length,y:cury+top+1,width:item.length}
 			#item.detail( x:curx,y:cury,height:0,area:self) unless 
@@ -122,8 +148,8 @@ class Writer < Pad #Space source #Wand staff pen pencil quill / scribe
 		#box '|', '-' 
 		update;	#self
 	end
-	
-	def add item; LOG.debug " add :#{item.inspect}";@content << item; work; end
+	# LOG.debug " add :#{item.inspect}";
+	def add item; @content << item; work; end
 	def << (item) 		
 		LOG.debug " << :#{item}"
 		@content.unshift(item.stack) #.flatten!
@@ -145,7 +171,7 @@ class Writer < Pad #Space source #Wand staff pen pencil quill / scribe
 			LOG.debug "command :#{@content}"
 			activity = Command.create(items: @content)
 		elsif !x and !y
-			target = view[@choice]
+			target = current
 		else
 			target = view[index_at x,y]
 		end

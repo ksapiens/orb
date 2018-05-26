@@ -1,10 +1,17 @@
-# ORB - Omnipercipient Resource Browser
-# 
-# 	Items
+# 	 ORB - Omniscient Resource Browser, Items
+#    Copyright (C) 2018 Kilian Reitmayr <reitmayr@gmx.de>
 #
-# copyright 2017 kilian reitmayr
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License, version 2 
+# 	 as published by the Free Software Foundation
+#    
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.	
+#
 
-class Item < Sequel::Model #element feature bit piece detiail entry point atom thing component molecule fragment grain dot spot particle
+class Item < Sequel::Model #element feature bit piece detail entry point atom thing component molecule fragment grain dot spot particle
 	plugin :timestamps, create: :time, update: :time
   plugin :single_table_inheritance, :type#, model_map: 
   	#Hash[ ([nil]+TYPE.keys).each_with_index.entries ].invert
@@ -47,7 +54,10 @@ class Item < Sequel::Model #element feature bit piece detiail entry point atom t
 	def default; (super or type.default).for(self); end
 	def length; to_s.length; end
 	#def type;	Type[ long: self.class.to_s ]; end	
-	
+	def draw area, highlight=false
+		area.draw (area.raw? ? long : to_s), x:x, y:y, color:color, 
+			highlight:highlight
+	end
 	#def more; views[ (@view or 0) ] or ""; end
 	#def cycle; @view = @view.cycle NEXT,0,views.count; end
 	#def views; [extra, (long if short), 
@@ -57,7 +67,7 @@ class Item < Sequel::Model #element feature bit piece detiail entry point atom t
 		type.history.map{ |action| action.for self }).uniq ;end
 	def symbol; super or self.class.type.symbol; end
 	#def symbol; long == "Type" ? super : self.class.type.symbol; end
-	def insert; COMMAND.add self; nil; end
+	def insert; COMMAND.add self.dup; nil; end
 	def rename; echo; short = COMMAND.getstr; noecho; save; end
 	def stack; self.update in_stack:true;self; end
 	def edit; end
